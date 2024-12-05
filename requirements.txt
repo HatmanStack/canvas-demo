@@ -1,3 +1,2 @@
-spaces
-gradio
+Pillow
 boto3
