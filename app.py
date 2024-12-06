@@ -209,13 +209,15 @@ def outpainting(image, mask_prompt=None, mask_image=None, text=None, negative_te
     # Prepare the outPaintingParams dictionary
     out_painting_params = {
         "image": input_image,
-        "outPaintingMode": outpainting_mode,
-        "maskPrompt": mask_prompt or ""  # Ensure maskPrompt is always included
+        "outPaintingMode": outpainting_mode
     }
 
     # Conditionally add parameters if they are not None
+
     if mask_image_encoded:
         out_painting_params["maskImage"] = mask_image_encoded
+    elif mask_prompt:
+        out_painting_params["maskPrompt"] = mask_prompt
     if text:
         out_painting_params["text"] = text
     if negative_text:
