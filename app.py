@@ -380,7 +380,8 @@ with gr.Blocks() as demo:
             gr.Markdown("""
             <div style="text-align: center;">
                 Modify specific areas of your image using inpainting. Upload your image and choose one of two ways to specify the areas you want to edit: 
-                You can use a photo editing tool to draw masks (using pure black for areas to edit and pure white for areas to preserve) or use the Mask Prompt field to allow the model to infer the mask.
+                You can use a photo editing tool to draw masks (using pure black for areas to edit and pure white for areas to preserve) or 
+                use the Mask Prompt field to direct the model in how to infer the mask.
             </div>
             """)
             image = gr.Image(type='pil', label="Input Image")
@@ -406,7 +407,7 @@ with gr.Blocks() as demo:
             <div style="text-align: center;">
                 Modify areas outside of your image using outpainting. Upload your image and choose one of two ways to specify the areas you want to edit: 
                 You can use a photo editing tool to draw masks extended outside of an images original borders (using pure black for areas to edit and pure 
-                white for areas to preserve) or use the Mask Prompt field to allow the model to infer the mask.
+                white for areas to preserve) or use the Mask Prompt field to direct the model in how to infer the mask.
             </div>
             """)
             image = gr.Image(type='pil', label="Input Image")
