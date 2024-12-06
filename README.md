@@ -1,6 +1,6 @@
 ---
 title: AWS Nova Canvas
-emoji: 🖼️
+emoji: 🚀
 colorFrom: blue
 colorTo: red
 sdk: gradio
