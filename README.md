@@ -11,7 +11,6 @@ license: apache-2.0
 short_description: Generate image variations
 ---
 
-
 # AWS Nova Canvas Image Generation
 
 A Gradio application for advanced image generation using Amazon Nova Canvas, offering comprehensive image manipulation capabilities.
@@ -28,13 +27,14 @@ A Gradio application for advanced image generation using Amazon Nova Canvas, off
 
 ## Prerequisites
 
-- AWS credentials configured
+- AWS credentials configured (AmazonBedrockFullAccess)
 - Boto3 Python library
 - Gradio 5.6.0
 
 ## Technical Details
 
 - Model: Amazon Nova Canvas (amazon.nova-canvas-v1:0)
+- Model: Amazon Nova Lite (us.amazon.nova-lite-v1:0)
 - Image Generation Parameters:
   - Default resolution: 1024x1024
   - Quality: Standard
