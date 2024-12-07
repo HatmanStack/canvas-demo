@@ -1,15 +1,21 @@
----
-title: AWS Nova Canvas
-emoji: 🚀
-colorFrom: blue
-colorTo: red
-sdk: gradio
-sdk_version: 5.6.0
-app_file: app.py
-pinned: false
-license: apache-2.0
-short_description: Generate image variations
----
+<h1 align="center">
+  <img width="800" src="banner.png" alt="canvas-app icon">
+</h1>
+<h4 align="center">
+  <a href="https://www.apache.org/licenses/LICENSE-2.0.html">
+    <img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="float is under the Apache 2.0 liscense" />
+  </a>
+  <a href="https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html">
+    <img src="https://img.shields.io/badge/AWS%20Nova%20Lite-green" alt="AWS Nova Lite" />
+  </a>
+  <a href="https://docs.aws.amazon.com/nova/latest/userguide/what-is-nova.html">
+    <img src="https://img.shields.io/badge/AWS%20Nova%20Canvas-voilet" alt="AWS Nova Canvas" />
+  </a>
+  
+</h4>
+<p align="center">
+  <p align="center"><a href="https://hatman-aws-nova-canvas.hf.space"> AWS Nova Canvas » </a> </b> </p>
+</p>
 
 # AWS Nova Canvas Image Generation
 
