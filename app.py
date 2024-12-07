@@ -164,7 +164,7 @@ with gr.Blocks() as demo:
     with gr.Accordion("Tips", open=False):
         gr.Markdown("On Inference Speed: Resolution (width/height), and quality all have an impact on Inference Speed.")
         gr.Markdown("On Negation: For example, consider the prompt \"a rainy city street at night with no people\". The model might interpret \"people\" as a directive of what to include instead of omit. To generate better results, you could use the prompt \"a rainy city street at night\" with a negative prompt \"people\".")
-        gr.Markdown("On Prompt Length: When Diffusion models first came out they were limited to 77 tokens.  Techniques have been developed to extend this window but they are still limited by their training data.  AWS Nova Canvas is different in this respect by limiting based on character length.  No characters over the character limit will be inferred in the generated model.")
+        gr.Markdown("On Prompt Length: When diffusion models were first introduced, they could process only 77 tokens. While new techniques have extended this limit, they remain bound by their training data. AWS Nova Canvas limits input by character length instead, ensuring no characters beyond the set limit are considered in the generated model.")
 if __name__ == "__main__":
     demo.launch()
 
