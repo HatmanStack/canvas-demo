@@ -4,6 +4,7 @@ import boto3
 import json
 import logging
 import io
+from datetime import datetime
 from dotenv import load_dotenv
 from PIL import Image
 from functools import wraps
@@ -45,6 +46,8 @@ config = ImageConfig()
 model_id = 'amazon.nova-canvas-v1:0'
 aws_id = os.getenv('AWS_ID')
 aws_secret = os.getenv('AWS_SECRET')
+nova_image_bucket='nova-image-data'
+bucket_region='us-west-2'
 
 class ImageProcessor:
     def __init__(self, image):
@@ -108,15 +111,45 @@ class ImageProcessor:
 # Function to generate an image using Amazon Nova Canvas model
 class BedrockClient:
 
-    def __init__(self, aws_id, aws_secret, model_id, region='us-east-1', timeout=300):
+    def __init__(self, aws_id, aws_secret, model_id, timeout=300):
         self.model_id = model_id
-        self.client = boto3.client(
+        self.bedrock_client = boto3.client(
             service_name='bedrock-runtime',
             aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret,
-            region_name=region,
+            region_name='us-east-1',
             config=Config(read_timeout=timeout)
         )
+        self.s3_client = boto3.client(
+            service_name='s3',
+            aws_access_key_id=aws_id,
+            aws_secret_access_key=aws_secret,
+            region_name=bucket_region
+        )
+
+    def _store_response(self, response_body, image_data=None):
+        """Store response and image in S3."""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Store response body
+        response_key = f'responses/{timestamp}_response.json'
+        self.s3_client.put_object(
+            Bucket=nova_image_bucket,
+            Key=response_key,
+            Body=json.dumps(response_body),
+            ContentType='application/json'
+        )
+        
+        # Store image if present
+        if image_data:
+            image_key = f'images/{timestamp}_image.png'
+            self.s3_client.put_object(
+                Bucket=nova_image_bucket,
+                Key=image_key,
+                Body=image_data,
+                ContentType='image/png'
+            )
+    
     
     def _handle_error(self, err):
         """Handle client errors"""
@@ -125,20 +158,27 @@ class BedrockClient:
     def generate_image(self, body):
         """Generate image using Bedrock service."""
         try:
-            response = self.client.invoke_model(
+            response = self.bedrock_client.invoke_model(
                 body=body,
                 modelId=self.model_id,
                 accept="application/json",
                 contentType="application/json"
             )
-            return self._process_response(response)
+            image_data =  self._process_response(response)
+
+            self._store_response(
+                body,
+                image_data
+            )
+
+            return image_data
         except ClientError as err:
             self._handle_error(err)
     
     @handle_bedrock_errors
     def generate_prompt(self, body):
         try:
-            response = self.client.converse(
+            response = self.bedrock_client.converse(
                 modelId=self.model_id, 
                 messages=body
             )
