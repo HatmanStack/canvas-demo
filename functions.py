@@ -1,13 +1,21 @@
 import json
 import io
 import random
+import gradio as gr
 from PIL import Image
 from generate import *
 from typing import Dict, Any
 
 def display_image(image_bytes):
-    image = Image.open(io.BytesIO(image_bytes))
-    return image
+    if isinstance(image_bytes, str):
+        # If we received a string (error message), return it to be displayed
+        return None, gr.update(visible=True, value=image_bytes)
+    elif image_bytes:
+        # If we received image bytes, process and display the image
+        return Image.open(io.BytesIO(image_bytes)), gr.update(visible=False)
+    else:
+        # Handle None case
+        return None, gr.update(visible=False)
 
 def process_optional_params(**kwargs) -> Dict[str, Any]:
     return {k: v for k, v in kwargs.items() if v is not None}
@@ -60,7 +68,9 @@ def text_to_image(prompt, negative_text=None, height=1024, width=1024, quality="
 
 def inpainting(image, mask_prompt=None, mask_image=None, text=None, negative_text=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     images = process_images(primary=image, secondary=None)
-
+    for value in images.values():
+        if isinstance(value, str) and "Not Appropriate" in value:
+            return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")
     # Prepare the inPaintingParams dictionary
     if mask_prompt and mask_image:
         raise ValueError("You must specify either maskPrompt or maskImage, but not both.")
@@ -80,6 +90,9 @@ def inpainting(image, mask_prompt=None, mask_image=None, text=None, negative_tex
 
 def outpainting(image, mask_prompt=None, mask_image=None, text=None, negative_text=None, outpainting_mode="DEFAULT", height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     images = process_images(primary=image, secondary=None)
+    for value in images.values():
+        if isinstance(value, str) and "Not Appropriate" in value:
+            return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")
 
     if mask_prompt and mask_image:
         raise ValueError("You must specify either maskPrompt or maskImage, but not both.")
@@ -117,6 +130,9 @@ def image_variation(images, text=None, negative_text=None, similarity_strength=0
 
 def image_conditioning(condition_image, text, negative_text=None, control_mode="CANNY_EDGE", control_strength=0.7, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     condition_image_encoded = process_images(primary=condition_image)
+    for value in condition_image_encoded.values():
+        if isinstance(value, str) and "Not Appropriate" in value:
+            return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")
     # Prepare the textToImageParams dictionary
     text_to_image_params = {
         "text": text,
@@ -131,6 +147,10 @@ def image_conditioning(condition_image, text, negative_text=None, control_mode="
 def color_guided_content(text=None, reference_image=None, negative_text=None, colors=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     # Encode the reference image if provided
     reference_image_encoded = process_images(primary=reference_image)
+    for value in reference_image_encoded.values():
+        if isinstance(value, str) and "Not Appropriate" in value:
+            return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")
+        
     if not colors:
         colors = "#FF5733,#33FF57,#3357FF,#FF33A1,#33FFF5,#FF8C33,#8C33FF,#33FF8C,#FF3333,#33A1FF"
     
@@ -146,6 +166,10 @@ def color_guided_content(text=None, reference_image=None, negative_text=None, co
 
 def background_removal(image):
     input_image = process_and_encode_image(image)
+    for value in input_image.values():
+        if isinstance(value, str) and "Not Appropriate" in value:
+            return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")
+        
     body = json.dumps({
         "taskType": "BACKGROUND_REMOVAL",
         "backgroundRemovalParams": {"image": input_image}

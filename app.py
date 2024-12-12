@@ -44,10 +44,11 @@ with gr.Blocks() as demo:
             """)
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
-            gr.Button("Generate").click(text_to_image, inputs=[prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(text_to_image, inputs=[prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Inpainting"):
         with gr.Column():
@@ -65,11 +66,12 @@ with gr.Blocks() as demo:
             mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
             with gr.Accordion("Mask Image", open=False):
                 mask_image = gr.Image(type='pil', label="Mask Image")
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             
-            gr.Button("Generate").click(inpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(inpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Outpainting"):
         with gr.Column():
@@ -88,12 +90,13 @@ with gr.Blocks() as demo:
             mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
             with gr.Accordion("Mask Image", open=False):
                 mask_image = gr.Image(type='pil', label="Mask Image")
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 outpainting_mode = gr.Radio(choices=["DEFAULT", "PRECISE"], value="DEFAULT", label="Outpainting Mode")
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             
-            gr.Button("Generate").click(outpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, outpainting_mode, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(outpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, outpainting_mode, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Image Variation"):
         with gr.Column():
@@ -106,12 +109,13 @@ with gr.Blocks() as demo:
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 similarity_strength = gr.Slider(minimum=0.2, maximum=1.0, step=0.1, value=0.7, label="Similarity Strength")
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             
-            gr.Button("Generate").click(image_variation, inputs=[images, prompt, negative_text, similarity_strength, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(image_variation, inputs=[images, prompt, negative_text, similarity_strength, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Image Conditioning"):
         with gr.Column():
@@ -125,12 +129,13 @@ with gr.Blocks() as demo:
             condition_image = gr.Image(type='pil', label="Condition Image")
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 control_mode = gr.Radio(choices=["CANNY_EDGE", "SEGMENTATION"], value="CANNY_EDGE", label="Control Mode")
                 control_strength = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, value=0.7, label="Control Strength")
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
-            gr.Button("Generate").click(image_conditioning, inputs=[condition_image, prompt, negative_text, control_mode, control_strength, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(image_conditioning, inputs=[condition_image, prompt, negative_text, control_mode, control_strength, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Color Guided Content"):
         with gr.Column():
@@ -145,10 +150,11 @@ with gr.Blocks() as demo:
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
-            gr.Button("Generate").click(color_guided_content, inputs=[prompt, reference_image, negative_text, colors, height, width, quality, cfg_scale, seed], outputs=output)
+            gr.Button("Generate").click(color_guided_content, inputs=[prompt, reference_image, negative_text, colors, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Background Removal"):
         with gr.Column():
@@ -158,13 +164,30 @@ with gr.Blocks() as demo:
                 </div>
             """)
             image = gr.Image(type='pil', label="Input Image")
+            error_box = gr.Markdown(visible=False, label="Error")
             output = gr.Image()
-            gr.Button("Generate").click(background_removal, inputs=image, outputs=output)
+            gr.Button("Generate").click(background_removal, inputs=image, outputs=[output, error_box])
 
     with gr.Accordion("Tips", open=False):
         gr.Markdown("On Inference Speed: Resolution (width/height), and quality all have an impact on Inference Speed.")
         gr.Markdown("On Negation: For example, consider the prompt \"a rainy city street at night with no people\". The model might interpret \"people\" as a directive of what to include instead of omit. To generate better results, you could use the prompt \"a rainy city street at night\" with a negative prompt \"people\".")
         gr.Markdown("On Prompt Length: When diffusion models were first introduced, they could process only 77 tokens. While new techniques have extended this limit, they remain bound by their training data. AWS Nova Canvas limits input by character length instead, ensuring no characters beyond the set limit are considered in the generated model.")
+
+    gr.Markdown("""
+    <div style="text-align: center;">
+        <h1>Sample Prompts and Results</h1>
+    </div>
+    
+    
+    | Example | Prompt |
+    |:-------:|:-------|
+    | <img src='examples/sample2.png' width='200'> | A whimsical outdoor scene where vibrant flowers and sprawling vines, crafted from an array of colorful fruit leathers and intricately designed candies, flutter with delicate, lifelike butterflies made from translucent, shimmering sweets. Each petal and leaf glistens with a soft, sugary sheen, casting playful reflections. The butterflies, with their candy wings adorned in fruity patterns, flit about, creating a magical, edible landscape that delights the senses. |
+    | <img src='examples/sample4.png' width='200'> | A rugged adventurer's ensemble, crafted for the wild, featuring a khaki jacket adorned with numerous functional pockets, a sun-bleached pith hat with a wide brim, sturdy canvas trousers with reinforced knees, and a pair of weathered leather boots with high-traction soles. Accented with a brass compass pendant and a leather utility belt laden with small tools, the outfit is completed by a pair of aviator sunglasses and a weathered map tucked into a side pocket. |
+    
+    """)
+
+
+
 if __name__ == "__main__":
     demo.launch()
 

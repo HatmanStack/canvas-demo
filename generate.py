@@ -4,6 +4,8 @@ import boto3
 import json
 import logging
 import io
+import time
+import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from PIL import Image
@@ -46,6 +48,8 @@ config = ImageConfig()
 model_id = 'amazon.nova-canvas-v1:0'
 aws_id = os.getenv('AWS_ID')
 aws_secret = os.getenv('AWS_SECRET')
+token = os.environ.get("HF_TOKEN")
+headers = {"Authorization": f"Bearer {token}", "x-use-cache": "0", 'Content-Type': 'application/json'}
 nova_image_bucket='nova-image-data'
 bucket_region='us-west-2'
 
@@ -58,6 +62,42 @@ class ImageProcessor:
         if image is None:
             raise ValueError("Input image is required.")
         return Image.open(image) if not isinstance(image, Image.Image) else image
+    
+    def _check_nsfw(self, attempts=1):
+        """Check if image is NSFW using Hugging Face API."""
+        try:
+            # Save current image temporarily
+            temp_buffer = io.BytesIO()
+            self.image.save(temp_buffer, format='PNG')
+            temp_buffer.seek(0)
+            
+            API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
+            response = requests.request("POST", API_URL, headers=headers, data=temp_buffer.getvalue())
+            decoded_response = response.content.decode("utf-8")
+            
+            json_response = json.loads(decoded_response)
+            
+            if "error" in json_response:
+                time.sleep(json_response["estimated_time"])
+                return self._check_nsfw(attempts+1)
+            
+            scores = {item['label']: item['score'] for item in json_response}
+            nsfw_score = scores.get('nsfw', 0)
+            print(f"NSFW Score: {nsfw_score}")
+            
+            if nsfw_score > 0.1:
+                raise ImageError("Image <b>Not Appropriate</b>")
+                
+            return self
+            
+        except json.JSONDecodeError as e:
+            print(f'JSON Decoding Error: {e}')
+            raise ImageError("NSFW check failed")
+        except Exception as e:
+            print(f'NSFW Check Error: {e}')
+            if attempts > 30:
+                raise ImageError("NSFW check failed after multiple attempts")
+            return self._check_nsfw(attempts+1)
     
     def _convert_color_mode(self):
         """Handle color mode conversion."""
@@ -106,6 +146,7 @@ class ImageProcessor:
                 ._convert_color_mode()
                 ._resize_for_pixels(max_pixels)
                 ._ensure_dimensions(min_size, max_size)
+                ._check_nsfw()  # Add NSFW check before encoding
                 .encode())
 
 # Function to generate an image using Amazon Nova Canvas model
@@ -203,18 +244,80 @@ class BedrockClient:
         
         raise ImageError("Unexpected response format.")
 
+def check_rate_limit(body):
+    body = json.loads(body)
+    quality = body.get('imageGenerationConfig', {}).get('quality', 'standard')
+    
+    s3_client = boto3.client(
+        service_name='s3',
+        aws_access_key_id=os.getenv('AWS_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET'),
+        region_name=bucket_region
+    )
+    
+    try:
+        # Get current rate limit data
+        response = s3_client.get_object(
+            Bucket=nova_image_bucket,
+            Key='rate-limit/jsonData.json'
+        )
+        rate_data = json.loads(response['Body'].read().decode('utf-8'))
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NoSuchKey':
+            # Initialize if file doesn't exist
+            rate_data = {'premium': [], 'standard': []}
+        else:
+            raise ImageError(f"Failed to check rate limit: {str(e)}")
+
+    # Get current timestamp
+    current_time = datetime.now().timestamp()
+    # Keep only requests from last minute
+    twenty_minutes_ago = current_time - 1200
+    
+    # Clean up old entries
+    rate_data['premium'] = [t for t in rate_data['premium'] if t > twenty_minutes_ago]
+    rate_data['standard'] = [t for t in rate_data['standard'] if t > twenty_minutes_ago]
+    
+    # Check limits based on quality
+    if quality == 'premium':
+        if len(rate_data['premium']) >= 2:   
+            raise ImageError("<div style='text-align: center;'>Premium rate limit exceeded. Check back later or you use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+        rate_data['premium'].append(current_time)
+    else:  # standard
+        if len(rate_data['standard']) >= 4:
+            raise ImageError("<div style='text-align: center;'>Standard rate limit exceeded. Check back later or you use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+        rate_data['standard'].append(current_time)
+    
+    # Update rate limit file
+    s3_client.put_object(
+        Bucket=nova_image_bucket,
+        Key='rate-limit/jsonData.json',
+        Body=json.dumps(rate_data),
+        ContentType='application/json'
+    )
+    
+
 def process_and_encode_image(image, **kwargs):
     """Process and encode image with default parameters."""
-    return ImageProcessor(image).process(**kwargs)
+    try:
+        image = ImageProcessor(image).process(**kwargs)
+        return image
+    except ImageError as e:
+        return str(e)
 
 def generate_image(body):
     """Generate image using Bedrock service."""
-    client = BedrockClient(
-        aws_id=os.getenv('AWS_ID'),
-        aws_secret=os.getenv('AWS_SECRET'),
-        model_id='amazon.nova-canvas-v1:0'
-    )
-    return client.generate_image(body)
+    try:
+        check_rate_limit(body)
+        client = BedrockClient(
+            aws_id=os.getenv('AWS_ID'),
+            aws_secret=os.getenv('AWS_SECRET'),
+            model_id='amazon.nova-canvas-v1:0'
+        )
+        return client.generate_image(body)
+    except ImageError as e:
+        return str(e)
+        
 
 def generate_prompt(body):
     client = BedrockClient(
