@@ -68,6 +68,7 @@ def text_to_image(prompt, negative_text=None, height=1024, width=1024, quality="
 
 def inpainting(image, mask_prompt=None, mask_image=None, text=None, negative_text=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     images = process_images(primary=image, secondary=None)
+    
     for value in images.values():
         if isinstance(value, str) and "Not Appropriate" in value:
             return None, gr.update(visible=True, value="Image <b>Not Appropriate</b>")

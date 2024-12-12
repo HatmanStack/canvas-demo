@@ -65,39 +65,37 @@ class ImageProcessor:
     
     def _check_nsfw(self, attempts=1):
         """Check if image is NSFW using Hugging Face API."""
+        API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
+        
+        # Prepare image data
+        temp_buffer = io.BytesIO()
+        self.image.save(temp_buffer, format='PNG')
+        temp_buffer.seek(0)
+        
         try:
-            # Save current image temporarily
-            temp_buffer = io.BytesIO()
-            self.image.save(temp_buffer, format='PNG')
-            temp_buffer.seek(0)
-            
-            API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
             response = requests.request("POST", API_URL, headers=headers, data=temp_buffer.getvalue())
-            decoded_response = response.content.decode("utf-8")
-            
-            json_response = json.loads(decoded_response)
-            
+            json_response = json.loads(response.content.decode("utf-8"))
+            print(json_response)
             if "error" in json_response:
+                if attempts > 30:
+                    raise ImageError("NSFW check failed after multiple attempts")
                 time.sleep(json_response["estimated_time"])
-                return self._check_nsfw(attempts+1)
+                return self._check_nsfw(attempts + 1)
             
-            scores = {item['label']: item['score'] for item in json_response}
-            nsfw_score = scores.get('nsfw', 0)
+            nsfw_score = next((item['score'] for item in json_response if item['label'] == 'nsfw'), 0)
             print(f"NSFW Score: {nsfw_score}")
             
             if nsfw_score > 0.1:
-                raise ImageError("Image <b>Not Appropriate</b>")
-                
+                return None
+                  
             return self
             
         except json.JSONDecodeError as e:
-            print(f'JSON Decoding Error: {e}')
-            raise ImageError("NSFW check failed")
+            raise ImageError(f"NSFW check failed: Invalid response format - {str(e)}")
         except Exception as e:
-            print(f'NSFW Check Error: {e}')
             if attempts > 30:
                 raise ImageError("NSFW check failed after multiple attempts")
-            return self._check_nsfw(attempts+1)
+            return self._check_nsfw(attempts + 1)
     
     def _convert_color_mode(self):
         """Handle color mode conversion."""
@@ -142,12 +140,16 @@ class ImageProcessor:
         
     def process(self, min_size=320, max_size=4096, max_pixels=4194304):
         """Process image with all necessary transformations."""
-        return (self
-                ._convert_color_mode()
-                ._resize_for_pixels(max_pixels)
-                ._ensure_dimensions(min_size, max_size)
-                ._check_nsfw()  # Add NSFW check before encoding
-                .encode())
+        result = (self
+            ._convert_color_mode()
+            ._resize_for_pixels(max_pixels)
+            ._ensure_dimensions(min_size, max_size)
+            ._check_nsfw())  # Add NSFW check before encoding
+    
+        if result is None:
+            raise ImageError("Image <b>Not Appropriate</b>")
+            
+        return result.encode()
 
 # Function to generate an image using Amazon Nova Canvas model
 class BedrockClient:
@@ -281,11 +283,11 @@ def check_rate_limit(body):
     # Check limits based on quality
     if quality == 'premium':
         if len(rate_data['premium']) >= 2:   
-            raise ImageError("<div style='text-align: center;'>Premium rate limit exceeded. Check back later or you use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+            raise ImageError("<div style='text-align: center;'>Premium rate limit exceeded. Check back later or use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
         rate_data['premium'].append(current_time)
     else:  # standard
         if len(rate_data['standard']) >= 4:
-            raise ImageError("<div style='text-align: center;'>Standard rate limit exceeded. Check back later or you use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+            raise ImageError("<div style='text-align: center;'>Standard rate limit exceeded. Check back later or use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
         rate_data['standard'].append(current_time)
     
     # Update rate limit file

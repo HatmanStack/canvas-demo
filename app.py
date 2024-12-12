@@ -31,9 +31,15 @@ with gr.Blocks() as demo:
             max-width: 800px;
             margin: 0 auto; 
         }
+        .center-markdown {
+            text-align: center !important;
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
     </style>
     """)
-    gr.Markdown("# Amazon Nova Canvas Image Generation")
+    gr.Markdown("<h1>Amazon Nova Canvas Image Generation</h1>", elem_classes="center-markdown" )
 
     with gr.Tab("Text to Image"):
         with gr.Column():
@@ -44,7 +50,7 @@ with gr.Blocks() as demo:
             """)
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
@@ -66,7 +72,7 @@ with gr.Blocks() as demo:
             mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
             with gr.Accordion("Mask Image", open=False):
                 mask_image = gr.Image(type='pil', label="Mask Image")
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
@@ -90,7 +96,7 @@ with gr.Blocks() as demo:
             mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
             with gr.Accordion("Mask Image", open=False):
                 mask_image = gr.Image(type='pil', label="Mask Image")
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 outpainting_mode = gr.Radio(choices=["DEFAULT", "PRECISE"], value="DEFAULT", label="Outpainting Mode")
@@ -109,7 +115,7 @@ with gr.Blocks() as demo:
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 similarity_strength = gr.Slider(minimum=0.2, maximum=1.0, step=0.1, value=0.7, label="Similarity Strength")
@@ -129,7 +135,7 @@ with gr.Blocks() as demo:
             condition_image = gr.Image(type='pil', label="Condition Image")
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 control_mode = gr.Radio(choices=["CANNY_EDGE", "SEGMENTATION"], value="CANNY_EDGE", label="Control Mode")
@@ -150,7 +156,7 @@ with gr.Blocks() as demo:
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
@@ -164,7 +170,7 @@ with gr.Blocks() as demo:
                 </div>
             """)
             image = gr.Image(type='pil', label="Input Image")
-            error_box = gr.Markdown(visible=False, label="Error")
+            error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             gr.Button("Generate").click(background_removal, inputs=image, outputs=[output, error_box])
 
