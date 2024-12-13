@@ -166,19 +166,22 @@ def image_conditioning(condition_image, text, negative_text=None, control_mode="
     return check_return(result)
 
 def color_guided_content(text=None, reference_image=None, negative_text=None, colors=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
-    # Encode the reference image if provided
-    reference_image_encoded = process_images(primary=reference_image)
-    for value in reference_image_encoded.values():
-        if len(value) < 200:
-            return None, gr.update(visible=True, value=value)
-        
+    reference_image_str = None
+
+    if reference_image is not None and not isinstance(reference_image, type(None)):
+       
+        reference_image_encoded = process_images(primary=reference_image)
+        for value in reference_image_encoded.values():
+            if len(value) < 200:
+                return None, gr.update(visible=True, value=value)
+            reference_image_str = reference_image_encoded.get('image')
     if not colors:
         colors = "#FF5733,#33FF57,#3357FF,#FF33A1,#33FFF5,#FF8C33,#8C33FF,#33FF8C,#FF3333,#33A1FF"
     
     color_guided_generation_params = {
         "text": text,
         "colors": colors.split(','),
-        "referenceImage": reference_image_encoded.get('image'),
+        **({"referenceImage": reference_image_str} if reference_image_str is not None else {}),    
         **({"negativeText": negative_text} if negative_text not in [None, ""] else {})
     }
 
