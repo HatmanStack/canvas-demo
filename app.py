@@ -147,15 +147,15 @@ with gr.Blocks() as demo:
         with gr.Column():
             gr.Markdown("""
             <div style="text-align: center;">
-                Generate an image using a color palette.  If you choose to include an image (optional) the subject and style will be used as a reference. 
+                Generate an image using a color palette.  If you must include an image and text prompt, the subject and style will be used as a reference. 
                 The colors of the image will also be incorporated, along with the colors from the colors list. A color list is always required but one has been provided.
                 </div>
             """)
             reference_image = gr.Image(type='pil', label="Reference Image")     
             colors = gr.Textbox(label="Colors", placeholder="Enter up to 10 colors as hex values, e.g., #00FF00,#FCF2AB", max_lines=1)
-            with gr.Accordion("Optional Prompt", open=False):
-                prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
-                gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+            
+            prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
+            gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
