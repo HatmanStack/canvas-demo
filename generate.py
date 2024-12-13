@@ -283,11 +283,15 @@ def check_rate_limit(body):
     # Check limits based on quality
     if quality == 'premium':
         if len(rate_data['premium']) >= 4:   
-            raise ImageError("<div style='text-align: center;'>Premium rate limit exceeded. Check back later or use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+            raise ImageError("""<div style='text-align: center;'>Premium rate limit exceeded. Check back later, use the 
+            <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a> or
+            try it out without an AWS account on <a href='https://partyrock.aws/'>PartyRock</a>.</div>""")
         rate_data['premium'].append(current_time)
     else:  # standard
         if len(rate_data['standard']) >= 8:
-            raise ImageError("<div style='text-align: center;'>Standard rate limit exceeded. Check back later or use the <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a>.</div>")
+            raise ImageError("""<div style='text-align: center;'>Standard rate limit exceeded. Check back later, use the 
+            <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a> or
+            try it out without an AWS account on <a href='https://partyrock.aws/'>PartyRock</a>.</div>""")
         rate_data['standard'].append(current_time)
     
     # Update rate limit file
