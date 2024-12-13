@@ -188,14 +188,21 @@ with gr.Blocks() as demo:
     # Example 1
     with gr.Row():
         with gr.Column():
-            gr.Image("examples/sample2.png", width=200, show_label=False, container=False)
+            gr.Image("examples/sample2.png", width=200, show_label=False, show_download_button=False,container=False)
         with gr.Column():
             gr.Markdown("""A whimsical outdoor scene where vibrant flowers and sprawling vines, crafted from an array of colorful fruit leathers and intricately designed candies, flutter with delicate, lifelike butterflies made from translucent, shimmering sweets. Each petal and leaf glistens with a soft, sugary sheen, casting playful reflections. The butterflies, with their candy wings adorned in fruity patterns, flit about, creating a magical, edible landscape that delights the senses.""")
     
     # Example 2
     with gr.Row():
         with gr.Column():
-            gr.Image("examples/sample4.png", width=200, show_label=False, container=False)
+            gr.Image("examples/sample3.png", width=200, show_label=False, show_download_button=False, container=False)
+        with gr.Column():
+            gr.Markdown("""A Kansas Jayhawk with a basketball photorealistic""")
+
+    # Example 3
+    with gr.Row():
+        with gr.Column():
+            gr.Image("examples/sample4.png", width=200, show_label=False, show_download_button=False,container=False)
         with gr.Column():
             gr.Markdown("""A rugged adventurer's ensemble, crafted for the wild, featuring a khaki jacket adorned with numerous functional pockets, a sun-bleached pith hat with a wide brim, sturdy canvas trousers with reinforced knees, and a pair of weathered leather boots with high-traction soles. Accented with a brass compass pendant and a leather utility belt laden with small tools, the outfit is completed by a pair of aviator sunglasses and a weathered map tucked into a side pocket.""")
 
