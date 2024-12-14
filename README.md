@@ -28,6 +28,7 @@ A Gradio application for advanced image generation using Amazon Nova Canvas, off
 ## Prerequisites
 
 - AWS credentials configured (AmazonBedrockFullAccess)
+- HF Token for Input Image Check
 - Boto3 Python library
 - Gradio 5.6.0
 
