@@ -27,8 +27,11 @@ def create_advanced_options():
 with gr.Blocks() as demo:
     gr.HTML("""
     <style>
+        ::-webkit-scrollbar {
+            display: none; 
+        }
         #component-0 {
-            max-width: 850px;
+            max-width: 800px;
             margin: 0 auto; 
         }
         .center-markdown {
@@ -143,7 +146,7 @@ with gr.Blocks() as demo:
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             gr.Button("Generate").click(image_conditioning, inputs=[condition_image, prompt, negative_text, control_mode, control_strength, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
-    with gr.Tab("Color Guided Content"):
+    with gr.Tab("Color Guided"):
         with gr.Column():
             gr.Markdown("""
             <div style="text-align: center;">
