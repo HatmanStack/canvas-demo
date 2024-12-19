@@ -80,6 +80,9 @@ with gr.Blocks() as demo:
                 brush={"color": "#000000", "radius": 25},
                 show_download_button=False,
                 show_share_button=False,
+                sources = ["upload"],
+                transforms = None,
+                layers = False,
                 label="Draw mask (black areas will be edited)",
             )
             with gr.Accordion("Optional Mask Prompt", open=False):
@@ -105,10 +108,12 @@ with gr.Blocks() as demo:
                 height="100%",
                 width="100%",
                 crop_size="1:1",
-                brush={"color": "#000000", "radius": 25},
+                brush=False,
                 show_download_button=False,
                 show_share_button=False,
-                label="Draw mask (black areas will be edited)"
+                sources = ["upload"],
+                layers = False,
+                label="Crop the Image (transparent areas will be edited)"
             )
             gr.Button("Create Padding").click(fn=update_mask_editor, inputs=[mask_image], outputs=[mask_image])
             
