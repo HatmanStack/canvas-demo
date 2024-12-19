@@ -32,7 +32,7 @@ def handle_bedrock_errors(func):
 
 aws_id = os.getenv('AWS_ID')
 aws_secret = os.getenv('AWS_SECRET')
-rate_limit = os.getenv('RATE_LIMIT')
+rate_limit = int(os.getenv('RATE_LIMIT'))
 nova_image_bucket='nova-image-data'
 bucket_region='us-west-2'
 rate_limit_message = """<div style='text-align: center;'>Rate limit exceeded. Check back later, use the 
