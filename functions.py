@@ -39,22 +39,19 @@ def create_padded_image(image, padding_percent=100):
 def process_composite_to_mask(original_image, composite_image, transparent=False):
     original_array = np.array(original_image.convert('RGBA'))
     if transparent:
-        white_background = Image.new('RGBA', original_image.size, (255, 255, 255, 255))
-        white_background.paste(original_image, (0, 0), original_image)
-        return white_background
+        black_background = Image.new('RGBA', original_image.size, (0, 0, 0, 255))
+        black_background.paste(original_image, (0, 0), original_image)
+        return black_background
     if composite_image is None:
-        mask = np.full(original_array.shape[:2], 255, dtype=np.uint8)  # Start with white
-        transparent_areas = original_array[:, :, 3] == 0  # Alpha channel is 0 for transparent pixels
-        mask[transparent_areas] = 0
+        mask = np.full(original_array.shape[:2], 0, dtype=np.uint8)  
+        transparent_areas = original_array[:, :, 3] == 0  
+        mask[transparent_areas] = 255
     else:
         composite_array = np.array(composite_image.convert('RGBA'))
     
         difference = np.any(original_array != composite_array, axis=2)
         mask = np.full(original_array.shape[:2], 255, dtype=np.uint8)
         mask[difference] = 0
-        
-        
-        
     
     return Image.fromarray(mask, mode='L')
 
@@ -127,8 +124,9 @@ def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, heig
 
 def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, outpainting_mode="DEFAULT", height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     image = process_and_encode_image(mask_image['background'])
-    if len(value) < 200:
-        return None, gr.update(visible=True, value=value)
+    if len(image) < 200:
+        print(image)
+        return None, gr.update(visible=True, value=image)
 
     if mask_prompt and mask_image:
         raise ValueError("You must specify either maskPrompt or maskImage, but not both.")
@@ -141,9 +139,9 @@ def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, out
         image = process_and_encode_image(image)
         mask_image = process_and_encode_image(mask)
 
-    # Prepare the outPaintingParams dictionary
     out_painting_params = {
         "image": image,
+        #"outpaintingMode": outpainting_mode,   ## Malformed JSON Error
         **({"maskImage": mask_image} if mask_image not in [None, ""] else {}),
         **({"maskPrompt": mask_prompt} if mask_prompt not in [None, ""] else {}),
         **({"text": text} if text not in [None, ""] else {"text": " "}),
@@ -165,7 +163,6 @@ def image_variation(images, text=None, negative_text=None, similarity_strength=0
                 return None, gr.update(visible=True, value=value)
             encoded_images.append(value)
 
-    # Prepare the imageVariationParams dictionary
     image_variation_params = {
         "images": encoded_images,
         **({"similarityStrength": similarity_strength} if similarity_strength not in [None, ""] else {}),
@@ -183,7 +180,7 @@ def image_conditioning(condition_image, text, negative_text=None, control_mode="
     
     if len(condition_image_encoded) < 200:
         return None, gr.update(visible=True, value=condition_image_encoded)
-    # Prepare the textToImageParams dictionary
+    
     text_to_image_params = {
         "text": text,
         "controlMode": control_mode,
