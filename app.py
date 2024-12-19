@@ -171,12 +171,12 @@ with gr.Blocks() as demo:
                 The colors of the image will also be incorporated, along with the colors from the colors list. A generic color list has been provided behind the scenes if one isn't added.
             """, elem_classes="center-markdown")
             with gr.Row():
-                with gr.Column(scale=75): 
+                with gr.Column(scale=70): 
                     colors = gr.Textbox(label="Colors", placeholder="Enter up to 10 colors as hex values, e.g., #00FF00,#FCF2AB", max_lines=1)
-                with gr.Column(scale=25):  
-                    color_picker = gr.ColorPicker(label="Color Picker", show_label=False)
-                    #add_color_button = gr.Button("Add Color")  Work out Color Picker Collapsing and Rerendering
-                    #add_color_button.click(fn=add_color_to_list, inputs=[colors, color_picker], outputs=colors)
+                with gr.Column(scale=30):                    
+                            color_picker = gr.ColorPicker(label="Color Picker", show_label=False, value='#473c80', interactive=True)
+                            #add_color_button = gr.Button("Add Color")  
+                            #add_color_button.click(fn=add_color_to_list, inputs=[colors, color_picker], outputs=colors)
             prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             with gr.Accordion("Optional Reference Image", open=False):
