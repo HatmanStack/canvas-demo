@@ -48,12 +48,12 @@ with gr.Blocks() as demo:
         
     </style>
     """)
-    gr.Markdown("<h1>Amazon Nova Canvas Image Generation</h1>", elem_classes="center-markdown" )
+    gr.Markdown("<h1>AWS Nova Canvas Image Generation</h1>", elem_classes="center-markdown" )
 
     with gr.Tab("Text to Image"):
         with gr.Column():
             gr.Markdown("""
-                Generate an image from a text prompt using the Amazon Nova Canvas model.
+                Generate an image from a text prompt using the AWS Nova Canvas model.
             """, elem_classes="center-markdown")
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
@@ -66,12 +66,9 @@ with gr.Blocks() as demo:
     with gr.Tab("Inpainting"):
         with gr.Column():
             gr.Markdown("""
-            
-                Modify specific areas of your image using inpainting. Upload your base Image then choose one of two ways to specify the areas you want to edit: 
-                You can use the in app editing tool to draw masks for areas to edit or use the Mask Prompt field to direct the model how to infer the mask.  <b>ONLY 
-                ONE</b> of these methods can be used at a time.  Create an optional prompt to tell the model how to fill in the area you mask.
-           
-            """, elem_classes="center-markdown")
+            Modify specific areas of your image using inpainting. Upload your base image, then specify areas to edit using either 
+            the in-app editing tool to draw masks or the Mask Prompt field to let the model infer the mask. Note that only one masking 
+            method can be used at a time. You can provide an optional prompt to guide how the model fills in masked areas.""", elem_classes="center-markdown")
             mask_image = gr.ImageEditor(
                 type="pil",
                 height="100%",
@@ -99,9 +96,9 @@ with gr.Blocks() as demo:
     with gr.Tab("Outpainting"):
         with gr.Column():
             gr.Markdown("""
-                Modify areas outside of your image using outpainting. Give the image a transparent border by adding padding then draw
-                a mask on the image or border where you would like the model to generate new content.  The other option is to allow the model to infer the mask from the Mask Prompt.  In options, you can choose to precisley follow the mask or transition smoothly 
-                between the masked area and the non-masked area.  Create an optional prompt to tell the model how to fill in the area you mask.
+                Modify areas outside of your image using outpainting. Add transparent padding for a border, and use the crop feature to 
+                position your base image. The model can infer the mask from your Mask Prompt. Choose between precise mask boundaries or 
+                smooth transitions between masked and unmasked areas, and optionally provide a prompt to guide how masked areas are filled.
             """, elem_classes="center-markdown")
             mask_image = gr.ImageEditor(
                 type="pil",
@@ -132,7 +129,8 @@ with gr.Blocks() as demo:
     with gr.Tab("Image Variation"):
         with gr.Column():
             gr.Markdown("""
-                Create a variation image based on up to 5 other images and a Similarity slider available in options.  You can add a prompt to direct the model (optional).  Images should be .png or .jpg.  
+                Create a variation image based on up to 5 other images and a Similarity slider available in options.  You can add a prompt to direct the 
+                model (optional).  Images should be .png or .jpg.  
             """, elem_classes="center-markdown")
             images = gr.File(type='filepath', label="Input Images", file_count="multiple", file_types=["image"])
             with gr.Accordion("Optional Prompt", open=False):
