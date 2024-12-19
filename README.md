@@ -1,16 +1,3 @@
----
-title: AWS Nova Canvas
-emoji: 🚀
-colorFrom: blue
-colorTo: red
-sdk: gradio
-sdk_version: 5.6.0
-app_file: app.py
-pinned: false
-license: apache-2.0
-short_description: Generate image variations
----
-
 # AWS Nova Canvas Image Generation
 
 A Gradio application for advanced image generation using Amazon Nova Canvas, offering comprehensive image manipulation capabilities.
