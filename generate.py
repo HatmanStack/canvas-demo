@@ -32,9 +32,10 @@ def handle_bedrock_errors(func):
 
 aws_id = os.getenv('AWS_ID')
 aws_secret = os.getenv('AWS_SECRET')
+rate_limit = os.getenv('RATE_LIMIT')
 nova_image_bucket='nova-image-data'
 bucket_region='us-west-2'
-rate_limit_message = """<div style='text-align: center;'>{} rate limit exceeded. Check back later, use the 
+rate_limit_message = """<div style='text-align: center;'>Rate limit exceeded. Check back later, use the 
             <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a> or
             try it out without an AWS account on <a href='https://partyrock.aws/'>PartyRock</a>.</div>"""
 
@@ -166,15 +167,18 @@ def check_rate_limit(body):
     # Clean up old entries
     rate_data['premium'] = [t for t in rate_data['premium'] if t > twenty_minutes_ago]
     rate_data['standard'] = [t for t in rate_data['standard'] if t > twenty_minutes_ago]
-    
+
+    # Calculate the total count of requests in the last 20 minutes
+    total_count = len(rate_data['premium']) * 2 + len(rate_data['standard'])
+
     # Check limits based on quality
     if quality == 'premium':
-        if len(rate_data['premium']) >= 3:   
-            raise ImageError(rate_limit_message.format('Premium'))
+        if total_count + 2 > rate_limit:  # Check if adding 2 would exceed the threshold
+            raise ImageError(rate_limit_message)
         rate_data['premium'].append(current_time)
     else:  # standard
-        if len(rate_data['standard']) >= 100:
-            raise ImageError(rate_limit_message.format('Standard'))
+        if total_count + 1 > rate_limit:  # Check if adding 1 would exceed the threshold
+            raise ImageError(rate_limit_message)
         rate_data['standard'].append(current_time)
     
     # Update rate limit file
