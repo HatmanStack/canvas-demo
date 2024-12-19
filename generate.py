@@ -173,7 +173,7 @@ def check_rate_limit(body):
             raise ImageError(rate_limit_message.format('Premium'))
         rate_data['premium'].append(current_time)
     else:  # standard
-        if len(rate_data['standard']) >= 6:
+        if len(rate_data['standard']) >= 100:
             raise ImageError(rate_limit_message.format('Standard'))
         rate_data['standard'].append(current_time)
     

@@ -13,6 +13,11 @@ class Config:
 
 config = Config()
 
+def update_mask_editor(img):
+    if img['background'] is None:
+        return None
+    return create_padded_image(img)
+
 def create_advanced_options():
     
     negative_text = gr.Textbox(label="Negative Prompt", placeholder="Describe what not to include (1-1024 characters)", max_lines=1)
@@ -40,6 +45,7 @@ with gr.Blocks() as demo:
             justify-content: center !important;
             width: 100% !important;
         }
+        
     </style>
     """)
     gr.Markdown("<h1>Amazon Nova Canvas Image Generation</h1>", elem_classes="center-markdown" )
@@ -47,10 +53,8 @@ with gr.Blocks() as demo:
     with gr.Tab("Text to Image"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
-                        Generate an image from a text prompt using the Amazon Nova Canvas model.
-             </div>
-            """)
+                Generate an image from a text prompt using the Amazon Nova Canvas model.
+            """, elem_classes="center-markdown")
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
@@ -62,58 +66,69 @@ with gr.Blocks() as demo:
     with gr.Tab("Inpainting"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
-                Modify specific areas of your image using inpainting. Upload your image and choose one of two ways to specify the areas you want to edit: 
-                You can use a photo editing tool to draw masks (using pure black for areas to edit and pure white for areas to preserve) or 
-                use the Mask Prompt field to direct the model in how to infer the mask.  Create an optional prompt to tell the model how to fill in the area you mask.
-            </div>
-            """)
-            image = gr.Image(type='pil', label="Input Image")
-            with gr.Accordion("Optional Prompt", open=False):
-                prompt = gr.Textbox(label="Prompt", placeholder="Describe what to generate (1-1024 characters)", max_lines=4)
-                gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
-            with gr.Accordion("Mask Image", open=False):
-                mask_image = gr.Image(type='pil', label="Mask Image")
+            
+                Modify specific areas of your image using inpainting. Upload your base Image then choose one of two ways to specify the areas you want to edit: 
+                You can use the in app editing tool to draw masks for areas to edit or use the Mask Prompt field to direct the model how to infer the mask.  <b>ONLY 
+                ONE</b> of these methods can be used at a time.  Create an optional prompt to tell the model how to fill in the area you mask.
+           
+            """, elem_classes="center-markdown")
+            mask_image = gr.ImageEditor(
+                type="pil",
+                height="100%",
+                width="100%",
+                crop_size="1:1",
+                brush={"color": "#000000", "radius": 25},
+                show_download_button=False,
+                show_share_button=False,
+                label="Draw mask (black areas will be edited)",
+            )
+            with gr.Accordion("Optional Mask Prompt", open=False):
+                mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
+            prompt = gr.Textbox(label="Optional Prompt", placeholder="Describe what to generate (1-1024 characters) in the masked area", max_lines=4)
+            gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             
-            gr.Button("Generate").click(inpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
+            gr.Button("Generate").click(inpainting, inputs=[mask_image,mask_prompt, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Outpainting"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
-                Modify areas outside of your image using outpainting. The image you upload should have some transparency around the edges that you'd like to outpaint
-                into.  In options, you can choose to precisley follow the mask or transition smoothly between the masked area and the non-masked area. Choose one of two ways to specify the areas you want to edit: 
-                You can use a photo editing tool to draw masks extended outside of an images original borders (using pure black for areas to edit and pure 
-                white for areas to preserve) or use the Mask Prompt field to direct the model in how to infer the mask. Create an optional prompt to tell the model how to fill in the area you mask.
-            </div>
-            """)
-            image = gr.Image(type='pil', label="Input Image")
-            with gr.Accordion("Optional Prompt", open=False):
-                prompt = gr.Textbox(label="Prompt", placeholder="Describe what to generate (1-1024 characters)", max_lines=4)
-                gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-            mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
-            with gr.Accordion("Mask Image", open=False):
-                mask_image = gr.Image(type='pil', label="Mask Image")
+                Modify areas outside of your image using outpainting. Give the image a transparent border by adding padding then draw
+                a mask on the image or border where you would like the model to generate new content.  The other option is to allow the model to infer the mask from the Mask Prompt.  In options, you can choose to precisley follow the mask or transition smoothly 
+                between the masked area and the non-masked area.  Create an optional prompt to tell the model how to fill in the area you mask.
+            """, elem_classes="center-markdown")
+            mask_image = gr.ImageEditor(
+                type="pil",
+                height="100%",
+                width="100%",
+                crop_size="1:1",
+                brush={"color": "#000000", "radius": 25},
+                show_download_button=False,
+                show_share_button=False,
+                label="Draw mask (black areas will be edited)"
+            )
+            gr.Button("Create Padding").click(fn=update_mask_editor, inputs=[mask_image], outputs=[mask_image])
+            
+            with gr.Accordion("Optional Mask Prompt", open=False):
+                mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
+            prompt = gr.Textbox(label="Prompt", placeholder="Describe what to generate (1-1024 characters)", max_lines=4)
+            gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
             with gr.Accordion("Advanced Options", open=False):
                 outpainting_mode = gr.Radio(choices=["DEFAULT", "PRECISE"], value="DEFAULT", label="Outpainting Mode")
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             
-            gr.Button("Generate").click(outpainting, inputs=[image, mask_prompt, mask_image, prompt, negative_text, outpainting_mode, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
+            gr.Button("Generate").click(outpainting, inputs=[mask_image, mask_prompt, prompt, negative_text, outpainting_mode, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Image Variation"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
-                Create a variation image based on up to 5 other images and a Similarity slider available in options.  You can add a prompt to direct the model (optional).  Images should be .png or .jpg.
-                </div>
-            """)
+                Create a variation image based on up to 5 other images and a Similarity slider available in options.  You can add a prompt to direct the model (optional).  Images should be .png or .jpg.  
+            """, elem_classes="center-markdown")
             images = gr.File(type='filepath', label="Input Images", file_count="multiple", file_types=["image"])
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
@@ -129,12 +144,10 @@ with gr.Blocks() as demo:
     with gr.Tab("Image Conditioning"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
                 Generate an image conditioned by an input image.  You need to add a text prompt to direct the model (required).
                 You have two modes to control the conditioning,"CANNY" and "SEGMENTATION".  CANNY will follow the edges of the conditioning image closely.
                 SEGMENTATION will follow the layout or shapes of the conditioning image. 
-                </div>
-            """)
+            """, elem_classes="center-markdown")
             condition_image = gr.Image(type='pil', label="Condition Image")
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
@@ -149,14 +162,16 @@ with gr.Blocks() as demo:
     with gr.Tab("Color Guided"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
-                Generate an image using a color palette.  You must include a text prompt if you choose to include an image, the subject and style will be used as a reference. 
-                The colors of the image will also be incorporated, along with the colors from the colors list. A color list is also required if you choose not to include one,
-                a generic list has been provided.
-                </div>
-            """)
-              
-            colors = gr.Textbox(label="Colors", placeholder="Enter up to 10 colors as hex values, e.g., #00FF00,#FCF2AB", max_lines=1)
+                Generate an image using a color palette.  This mode requires a text prompt and a color list.  If you choose to include an image, the subject and style will be used as a reference. 
+                The colors of the image will also be incorporated, along with the colors from the colors list. A generic color list has been provided behind the scenes if one isn't added.
+            """, elem_classes="center-markdown")
+            with gr.Row():
+                with gr.Column(scale=75): 
+                    colors = gr.Textbox(label="Colors", placeholder="Enter up to 10 colors as hex values, e.g., #00FF00,#FCF2AB", max_lines=1)
+                with gr.Column(scale=25):  
+                    color_picker = gr.ColorPicker(label="Color Picker", show_label=False)
+                    #add_color_button = gr.Button("Add Color")  Work out Color Picker Collapsing and Rerendering
+                    #add_color_button.click(fn=add_color_to_list, inputs=[colors, color_picker], outputs=colors)
             prompt = gr.Textbox(label="Text", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             with gr.Accordion("Optional Reference Image", open=False):
@@ -170,10 +185,8 @@ with gr.Blocks() as demo:
     with gr.Tab("Background Removal"):
         with gr.Column():
             gr.Markdown("""
-            <div style="text-align: center;">
                 Remove the background from an image.
-                </div>
-            """)
+            """, elem_classes="center-markdown")
             image = gr.Image(type='pil', label="Input Image")
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
