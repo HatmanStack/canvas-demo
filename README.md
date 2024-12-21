@@ -45,7 +45,7 @@ A Gradio application for advanced image generation using AWS Nova Canvas, offeri
 ## Install
 
 ```script
-git clone https://githbu.com/hatmanstack/canvas-demo.git
+git clone https://github.com/hatmanstack/canvas-demo.git
 cd canvas-demo
 python -r requirements.txt
 ```
