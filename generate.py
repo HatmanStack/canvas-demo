@@ -33,8 +33,8 @@ def handle_bedrock_errors(func):
 aws_id = os.getenv('AWS_ID')
 aws_secret = os.getenv('AWS_SECRET')
 rate_limit = int(os.getenv('RATE_LIMIT'))
-nova_image_bucket='nova-image-data'
-bucket_region='us-west-2'
+nova_image_bucket=os.getenv('NOVA_IMAGE_BUCKET')
+bucket_region=os.getenv('BUCKET_REGION')
 rate_limit_message = """<div style='text-align: center;'>Rate limit exceeded. Check back later, use the 
             <a href='https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html'>Bedrock Playground</a> or
             try it out without an AWS account on <a href='https://partyrock.aws/'>PartyRock</a>.</div>"""
