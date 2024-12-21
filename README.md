@@ -1,16 +1,3 @@
----
-title: AWS Nova Canvas
-emoji: 🚀
-colorFrom: blue
-colorTo: red
-sdk: gradio
-sdk_version: 5.6.0
-app_file: app.py
-pinned: false
-license: apache-2.0
-short_description: Generate image variations
----
-
 <div align="center" style="display: block;margin-left: auto;margin-right: auto;width: 50%;">
 <h1>AWS Nova Canvas Image Generation</h1>
 <h1 >
