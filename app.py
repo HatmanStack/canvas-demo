@@ -18,13 +18,6 @@ def update_mask_editor(img):
         return None
     return create_padded_image(img)
 
-def update_canvas_size(image):
-    img = image['background']
-    width, height = img.size
-    width_container = max(width, 800)
-    height_container = max(height, 800)
-    return gr.update(canvas_size=(width, height), height=height_container + 20, width=width_container)
-
 def create_advanced_options():
     
     negative_text = gr.Textbox(label="Negative Prompt", placeholder="Describe what not to include (1-1024 characters)", max_lines=1)
@@ -55,8 +48,7 @@ with gr.Blocks() as demo:
     </style>
     """)
     gr.Markdown("""
-        <h1>AWS Nova Canvas Image Generation</h1><p>Known <a href="https://github.com/gradio-app/gradio/issues/7586">Issue</a> 
-        with Gradio ImageEditor in Chrome</p>Try Edge if having trouble with High Resource Usage</p>""", elem_classes="center-markdown" )
+        <h1>AWS Nova Canvas Image Generation</h1>""", elem_classes="center-markdown" )
     
     with gr.Tab("Text to Image"):
         with gr.Column():
@@ -86,16 +78,15 @@ with gr.Blocks() as demo:
                 height="100%",
                 width="100%",
                 crop_size="1:1",
-                brush={"color": "#000000", "radius": 25},
+                brush=gr.Brush(colors=["#000000"], default_size=50),
+                eraser=gr.Eraser(default_size=30),
                 show_download_button=False,
                 show_share_button=False,
                 sources = ["upload"],
-                transforms = None,
+                transforms = (""),
                 layers = False,
-                canvas_size = [450,450],
                 label="Draw mask (black areas will be edited)", 
             )
-            mask_image.change(fn=update_canvas_size, inputs=mask_image, outputs=mask_image)
 
             with gr.Accordion("Optional Mask Prompt", open=False):
                 mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
@@ -126,10 +117,8 @@ with gr.Blocks() as demo:
                 show_share_button=False,
                 sources = ["upload"],
                 layers = False,
-                canvas_size = [450,450],
                 label="Crop the Image (transparent areas will be edited)"
             )
-            mask_image.change(fn=update_canvas_size, inputs=mask_image, outputs=mask_image)
             gr.Button("Create Padding").click(fn=update_mask_editor, inputs=[mask_image], outputs=[mask_image])
             
             with gr.Accordion("Optional Mask Prompt", open=False):
