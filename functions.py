@@ -96,6 +96,7 @@ def text_to_image(prompt, negative_text=None, height=1024, width=1024, quality="
     
 
 def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
+    
     image = process_and_encode_image(mask_image['background'])
     if len(image) < 200:
         return None, gr.update(visible=True, value=image)
@@ -121,7 +122,7 @@ def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, heig
     result = generate_image(body)
     
     return check_return(result)
-
+    
 def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, outpainting_mode="DEFAULT", height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     image = process_and_encode_image(mask_image['background'])
     if len(image) < 200:
@@ -136,15 +137,13 @@ def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, out
     if mask_image and 'composite' in mask_image:
         mask = process_composite_to_mask(mask_image['background'], None)
         image = process_composite_to_mask(mask_image['background'], None, True)
-        image.save("image.png")
         image = process_and_encode_image(image)
-        mask.save("mask.png")
         
         mask_image = process_and_encode_image(mask)
 
     out_painting_params = {
         "image": image,
-        "outPaintingMode": outpainting_mode,   ## Malformed JSON Error
+        "outPaintingMode": outpainting_mode,  
         **({"maskImage": mask_image} if mask_image not in [None, ""] else {}),
         **({"maskPrompt": mask_prompt} if mask_prompt not in [None, ""] else {}),
         **({"text": text} if text not in [None, ""] else {"text": " "}),

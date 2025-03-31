@@ -61,6 +61,7 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             with gr.Row():
+                print('test')
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
                 gr.Button("Generate Image").click(text_to_image, inputs=[prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
             
@@ -212,7 +213,7 @@ with gr.Blocks() as demo:
         gr.Markdown("On Inference Speed: Resolution (width/height), and quality all have an impact on Inference Speed.")
         gr.Markdown("On Negation: For example, consider the prompt \"a rainy city street at night with no people\". The model might interpret \"people\" as a directive of what to include instead of omit. To generate better results, you could use the prompt \"a rainy city street at night\" with a negative prompt \"people\".")
         gr.Markdown("On Prompt Length: When diffusion models were first introduced, they could process only 77 tokens. While new techniques have extended this limit, they remain bound by their training data. AWS Nova Canvas limits input by character length instead, ensuring no characters beyond the set limit are considered in the generated model.")
-
+    
     gr.Markdown("""<h1>Sample Prompts and Results</h1>""", elem_classes="center-markdown")
     
     # Example 1
@@ -236,8 +237,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             gr.Markdown("""A rugged adventurer's ensemble, crafted for the wild, featuring a khaki jacket adorned with numerous functional pockets, a sun-bleached pith hat with a wide brim, sturdy canvas trousers with reinforced knees, and a pair of weathered leather boots with high-traction soles. Accented with a brass compass pendant and a leather utility belt laden with small tools, the outfit is completed by a pair of aviator sunglasses and a weathered map tucked into a side pocket.""")
 
-if __name__ == "__main__":
-    demo.launch()
+demo.launch()
 
 
 

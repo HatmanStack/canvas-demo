@@ -24,7 +24,7 @@ class ImageConfig:
 
 config = ImageConfig()
 
-token = os.environ.get("HF_TOKEN")
+token = amp_aws_id = os.getenv('AMP_AWS_ID').split('|')[2]
 headers = {"Authorization": f"Bearer {token}", "x-use-cache": "0", 'Content-Type': 'application/json'}
 
 class ImageProcessor:
@@ -59,7 +59,7 @@ class ImageProcessor:
             nsfw_score = next((item['score'] for item in json_response if item['label'] == 'nsfw'), 0)
             print(f"NSFW Score: {nsfw_score}")
             
-            if nsfw_score > 0.1:
+            if nsfw_score > 0.5:
                 return None
                   
             return self
