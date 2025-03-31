@@ -38,5 +38,5 @@ run:
       value: "us-west-2"
   secrets:
     - name: AMP_AWS_ID
-      value: "arn:aws:secretsmanager:us-west-2:631094035453:secret:apprunner-canvas-demo-secret-pHJCme"
+      value-from: "arn:aws:secretsmanager:us-west-2:631094035453:secret:apprunner-canvas-demo-secret-pHJCme"
     
