@@ -23,8 +23,11 @@ class ImageConfig:
     format: str = "PNG"
 
 config = ImageConfig()
+amp_aws_id = os.getenv('AMP_AWS_ID').split('|')
+print(f' AMP AWS ID: {amp_aws_id}')
+token = amp_aws_id[2]
 
-token = amp_aws_id = os.getenv('AMP_AWS_ID').split('|')[2]
+print(f' token: {token}')
 headers = {"Authorization": f"Bearer {token}", "x-use-cache": "0", 'Content-Type': 'application/json'}
 
 class ImageProcessor:

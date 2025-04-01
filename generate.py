@@ -30,8 +30,11 @@ def handle_bedrock_errors(func):
             raise ImageError(f"Unexpected error: {str(err)}")
     return wrapper
 amp_aws_id = os.getenv('AMP_AWS_ID').split('|')
+print(f' AMP AWS ID: {amp_aws_id}')
 aws_id = amp_aws_id[0]
 aws_secret = amp_aws_id[1]
+print(f' aws_id: {aws_id}')
+print(f' aws_secret: {aws_secret}')
 rate_limit = int(os.getenv('RATE_LIMIT'))
 nova_image_bucket=os.getenv('NOVA_IMAGE_BUCKET')
 bucket_region=os.getenv('BUCKET_REGION')
