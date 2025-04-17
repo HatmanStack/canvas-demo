@@ -23,7 +23,7 @@
   <p><b>From Thought - To Concept <br> <a href="https://hatman-aws-nova-canvas.hf.space"> Nova Canvas » </a> </b> </p>
 </div>
 
-A Gradio application for advanced image generation using AWS Nova Canvas, offering comprehensive image manipulation capabilities.  Deployed using AWS AppRunner.
+A Gradio application for advanced image generation using AWS Nova Canvas, offering comprehensive image manipulation capabilities.  Deployed using AWS Lambda.
 
 ## Capabilities
 

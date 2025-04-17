@@ -1,5 +1,5 @@
-Pillow
+Pillow==11.1.0
 boto3
 python-dotenv
-gradio
 requests
+gradio==5.23.3

@@ -1,0 +1,45 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-west-2"
+    AWS_ACCOUNT_ID: "631094035453"
+    IMAGE_REPO_NAME: "production/canvas-demo"
+    IMAGE_TAG: "latest"
+    # Enable Docker BuildKit
+    DOCKER_BUILDKIT: "1"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Install phase - checking required tools"
+      - aws --version
+      - docker --version
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - echo "Downloading secret from S3..."
+      - aws s3 cp s3://nova-image-data/secrets/amp_aws_id.txt /tmp/amp_aws_id.txt
+      - aws s3 cp s3://nova-image-data/secrets/amp_aws_secret.txt /tmp/amp_aws_secret.txt
+      - aws s3 cp s3://nova-image-data/secrets/hf_token.txt /tmp/hf_token.txt
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - echo "Building Docker image..."
+      - docker build --no-cache --progress=plain --secret id=amp_aws_id,src=/tmp/amp_aws_id.txt --secret id=amp_aws_secret,src=/tmp/amp_aws_secret.txt --secret id=hf_token,src=/tmp/hf_token.txt -t $IMAGE_URI .
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image to ECR...
+      - docker push $IMAGE_URI
+      - rm -f /tmp/amp_aws_id.txt
+      - rm -f /tmp/amp_aws_secret.txt
+      - rm -f /tmp/hf_token.txt
+      - echo Push finished. Image URI is $IMAGE_URI
