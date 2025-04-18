@@ -6,7 +6,7 @@ from PIL import Image
 from generate import *
 import numpy as np
 from typing import Dict, Any
-from processImage import process_and_encode_image
+from processImage import process_and_encode_image, ENABLE_NSFW_CHECK
 from datetime import datetime # Import datetime
 
 def rgba_to_hex(rgba):
@@ -117,6 +117,8 @@ def text_to_image(prompt, negative_text=None, height=1024, width=1024, quality="
 def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     print(f"[{datetime.now()}] --- inpainting START ---")
     print(f"[{datetime.now()}] Processing background image...")
+    global ENABLE_NSFW_CHECK
+    ENABLE_NSFW_CHECK = True
     image = process_and_encode_image(mask_image['background'])
     if len(image) < 200:
         print(f"[{datetime.now()}] Error processing background image: {image}")
@@ -158,6 +160,8 @@ def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, heig
 def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, outpainting_mode="DEFAULT", height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     print(f"[{datetime.now()}] --- outpainting START ---")
     print(f"[{datetime.now()}] Processing background image...")
+    global ENABLE_NSFW_CHECK
+    ENABLE_NSFW_CHECK = True
     image = process_and_encode_image(mask_image['background'])
     if len(image) < 200:
         print(f"[{datetime.now()}] Error processing background image: {image}")
@@ -208,6 +212,8 @@ def image_variation(images, text=None, negative_text=None, similarity_strength=0
     print(f"[{datetime.now()}] Processing input images...")
     for image_path in images:
         # Assuming image_path is the path string from Gradio File component
+        global ENABLE_NSFW_CHECK
+        ENABLE_NSFW_CHECK = True
         value = process_and_encode_image(image_path) # Pass path directly
 
         if len(value) < 200:
@@ -235,6 +241,8 @@ def image_variation(images, text=None, negative_text=None, similarity_strength=0
 def image_conditioning(condition_image, text, negative_text=None, control_mode="CANNY_EDGE", control_strength=0.7, height=1024, width=1024, quality="standard", cfg_scale=8.0, seed=0):
     print(f"[{datetime.now()}] --- image_conditioning START ---")
     print(f"[{datetime.now()}] Processing condition image...")
+    global ENABLE_NSFW_CHECK
+    ENABLE_NSFW_CHECK = True
     condition_image_encoded = process_and_encode_image(condition_image)
 
     if len(condition_image_encoded) < 200:
@@ -265,6 +273,8 @@ def color_guided_content(text=None, reference_image=None, negative_text=None, co
 
     if reference_image is not None: # Check if it's actually provided
         print(f"[{datetime.now()}] Processing reference image...")
+        global ENABLE_NSFW_CHECK
+        ENABLE_NSFW_CHECK = True
         reference_image_encoded = process_and_encode_image(reference_image)
 
         if len(reference_image_encoded) < 200:
@@ -296,6 +306,8 @@ def color_guided_content(text=None, reference_image=None, negative_text=None, co
 def background_removal(image):
     print(f"[{datetime.now()}] --- background_removal START ---")
     print(f"[{datetime.now()}] Processing input image...")
+    global ENABLE_NSFW_CHECK
+    ENABLE_NSFW_CHECK = True
     input_image = process_and_encode_image(image)
 
     if len(input_image) < 200:

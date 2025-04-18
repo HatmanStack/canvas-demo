@@ -1,9 +1,12 @@
 import gradio as gr
 from functions import *
+import logging
+import sys
 from dataclasses import dataclass
 import os # Ensure os is imported
 from datetime import datetime # Import datetime
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
+logging.info("--- app.py execution started (via logging) ---")
 print(f"[{datetime.now()}] Starting app.py...", flush=True)
 
 @dataclass
@@ -83,22 +86,9 @@ with gr.Blocks() as demo:
             the in-app editing tool to draw masks or the Mask Prompt field to let the model infer the mask. Note that only one masking
             method can be used at a time. You can provide an optional prompt to guide how the model fills in masked areas.
             """, elem_classes="center-markdown")
-
-            mask_image = gr.ImageEditor(
-                type="pil",
-                height="100%",
-                width="100%",
-                crop_size="1:1",
-                brush=gr.Brush(colors=["#000000"], default_size=50),
-                eraser=gr.Eraser(default_size=30),
-                show_download_button=False,
-                show_share_button=False,
-                sources = ["upload"],
-                transforms = (""),
-                layers = False,
-                label="Draw mask (black areas will be edited)",
-            )
-
+            
+            mask_image = gr.ImageMask(type="pil", label="Draw mask (black areas will be edited)")
+            
             with gr.Accordion("Optional Mask Prompt", open=False):
                 mask_prompt = gr.Textbox(label="Mask Prompt", placeholder="Describe regions to edit", max_lines=1)
             with gr.Accordion("Advanced Options", open=False):
@@ -108,9 +98,9 @@ with gr.Blocks() as demo:
             output = gr.Image()
             with gr.Row():
                 print(f"[{datetime.now()}] Binding Inpainting 'Generate Prompt' button...", flush=True)
-                gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+                #gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
                 print(f"[{datetime.now()}] Binding Inpainting 'Generate Image' button...", flush=True)
-                gr.Button("Generate Image").click(inpainting, inputs=[mask_image,mask_prompt, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
+                #gr.Button("Generate Image").click(inpainting, inputs=[mask_image,mask_prompt, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Outpainting"):
@@ -121,18 +111,8 @@ with gr.Blocks() as demo:
                 position your base image. The model can infer the mask from your Mask Prompt. Choose between precise mask boundaries or
                 smooth transitions between masked and unmasked areas, and optionally provide a prompt to guide how masked areas are filled.
                 """, elem_classes="center-markdown")
-            mask_image = gr.ImageEditor(
-                type="pil",
-                height="100%",
-                width="100%",
-                crop_size="1:1",
-                brush=False,
-                show_download_button=False,
-                show_share_button=False,
-                sources = ["upload"],
-                layers = False,
-                label="Crop the Image (transparent areas will be edited)"
-            )
+            mask_image = gr.ImageMask(type="pil", label="Draw mask (black areas will be edited)")
+            
             print(f"[{datetime.now()}] Binding Outpainting 'Create Padding' button...", flush=True)
             gr.Button("Create Padding").click(fn=update_mask_editor, inputs=[mask_image], outputs=[mask_image])
 
@@ -240,34 +220,13 @@ with gr.Blocks() as demo:
         gr.Markdown("On Negation: For example, consider the prompt \"a rainy city street at night with no people\". The model might interpret \"people\" as a directive of what to include instead of omit. To generate better results, you could use the prompt \"a rainy city street at night\" with a negative prompt \"people\".")
         gr.Markdown("On Prompt Length: When diffusion models were first introduced, they could process only 77 tokens. While new techniques have extended this limit, they remain bound by their training data. AWS Nova Canvas limits input by character length instead, ensuring no characters beyond the set limit (1000) are considered in the generated model.")
 
-    print(f"[{datetime.now()}] Setting up Examples section...", flush=True)
-    gr.Markdown("""<h1>Sample Prompts and Results</h1>""", elem_classes="center-markdown")
-
-    # Example 1
-    with gr.Row():
-        with gr.Column():
-            gr.Image("sample2.png", width=200, show_label=False, show_download_button=False, show_share_button=False, container=False)
-        with gr.Column():
-            gr.Markdown("""A whimsical outdoor scene where vibrant flowers and sprawling vines, crafted from an array of colorful fruit leathers and intricately designed candies, flutter with delicate, lifelike butterflies made from translucent, shimmering sweets. Each petal and leaf glistens with a soft, sugary sheen, casting playful reflections. The butterflies, with their candy wings adorned in fruity patterns, flit about, creating a magical, edible landscape that delights the senses.""")
-
-    # Example 2
-    with gr.Row():
-        with gr.Column():
-            gr.Image("sample3.png", width=200, show_label=False, show_download_button=False, show_share_button=False, container=False)
-        with gr.Column():
-            gr.Markdown("""A Kansas Jayhawk with a basketball photorealistic""")
-
-    # Example 3
-    with gr.Row():
-        with gr.Column():
-            gr.Image("sample4.png", width=200, show_label=False, show_download_button=False, show_share_button=False, container=False)
-        with gr.Column():
-            gr.Markdown("""A rugged adventurer's ensemble, crafted for the wild, featuring a khaki jacket adorned with numerous functional pockets, a sun-bleached pith hat with a wide brim, sturdy canvas trousers with reinforced knees, and a pair of weathered leather boots with high-traction soles. Accented with a brass compass pendant and a leather utility belt laden with small tools, the outfit is completed by a pair of aviator sunglasses and a weathered map tucked into a side pocket.""")
-
+    
 print(f"[{datetime.now()}] Finished setting up Gradio Blocks.", flush=True)
 
 # Decide how to launch based on environment (local vs Lambda)
 if __name__ == "__main__":
+    print(f"[{datetime.now()}] --- INSIDE if __name__ == '__main__' ---", flush=True) # ADD THIS LINE
+    
     if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
         # Running in Lambda
         server_port = int(os.environ.get("AWS_LAMBDA_HTTP_PORT", 8080))

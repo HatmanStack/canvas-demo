@@ -289,36 +289,9 @@ def generate_image(body):
 
 
 def generate_prompt(body):
-    start_time = datetime.now()
-    print(f"[{start_time}] --- generate_prompt START ---")
-    aws_id = os.getenv('AMP_AWS_ID') # Use specific credentials
-    aws_secret = os.getenv('AMP_AWS_SECRET')
-    if not aws_id or not aws_secret:
-        print(f"[{datetime.now()}] Missing AWS credentials for generate_prompt.")
-        return "Configuration error: Missing AWS credentials."
-
-    try:
-        client = BedrockClient(
-            aws_id=aws_id,
-            aws_secret=aws_secret,
-            # Ensure this model ID is correct for converse API
-            model_id='anthropic.claude-3-sonnet-20240229-v1:0'
-        )
-
-        # Prepare messages for Claude 3 Sonnet converse API
-        # Assuming 'body' contains the user's request for a prompt
-        messages = [{"role": "user", "content": [{"type": "text", "text": body}]}] # Adjust based on actual input 'body'
-
-        result = client.generate_prompt(messages) # Pass the prepared messages
-        end_time = datetime.now()
-        print(f"[{end_time}] --- generate_prompt END (Success). Duration: {end_time - start_time} ---")
-        return result
-    except ImageError as e:
-        end_time = datetime.now()
-        print(f"[{end_time}] --- generate_prompt END (ImageError: {e.message}). Duration: {end_time - start_time} ---")
-        return f"Error generating prompt: {e.message}"
-    except Exception as e:
-        end_time = datetime.now()
-        print(f"[{end_time}] --- generate_prompt END (Unexpected Error: {str(e)}). Duration: {end_time - start_time} ---")
-        logging.exception("Unexpected error in generate_prompt function")
-        return f"An unexpected error occurred while generating prompt: {str(e)}"
+    client = BedrockClient(
+        aws_id=os.getenv('AWS_ID'),
+        aws_secret=os.getenv('AWS_SECRET'),
+        model_id='us.amazon.nova-lite-v1:0'
+    )
+    return client.generate_prompt(body)

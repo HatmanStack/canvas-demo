@@ -15,6 +15,8 @@ class ImageError(Exception):
     def __init__(self, message):
         self.message = message
 
+ENABLE_NSFW_CHECK = False
+
 @dataclass
 class ImageConfig:
     min_size: int = 320
@@ -47,9 +49,13 @@ class ImageProcessor:
 
     def _check_nsfw(self, attempts=1):
         """Check if image is NSFW using Hugging Face API."""
+        global ENABLE_NSFW_CHECK 
+        if not ENABLE_NSFW_CHECK:
+            print(f"[{datetime.now()}] NSFW check skipped (globally disabled).")
+            return self
         print(f"[{datetime.now()}] Checking NSFW (Attempt {attempts})...")
         API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
-
+        ENABLE_NSFW_CHECK = False
         # Prepare image data
         temp_buffer = io.BytesIO()
         self.image.save(temp_buffer, format='PNG')
