@@ -43,7 +43,7 @@ def create_padded_image(image, padding_percent=100):
     new_width = int(width * (1 + padding_percent/100))
     new_height = int(height * (1 + padding_percent/100))
 
-    padded = Image.new('RGBA', (new_width, new_height), (0, 0, 0, 0))
+    padded = Image.new('RGBA', (new_width, new_height), (255, 255, 255, 255))
 
     x_offset = (new_width - width) // 2
     y_offset = (new_height - height) // 2
@@ -56,10 +56,16 @@ def process_composite_to_mask(original_image, composite_image, transparent=False
     custom_log(f"[{datetime.now()}] Running process_composite_to_mask...")
     original_array = np.array(original_image.convert('RGBA'))
     if transparent:
-        black_background = Image.new('RGBA', original_image.size, (0, 0, 0, 255))
-        black_background.paste(original_image, (0, 0), original_image)
+        custom_log(f"[{datetime.now()}] Processing in transparent mode (non-white to black)...")
+        is_not_white_mask = ~((original_array[:, :, 0] == 255) &
+                              (original_array[:, :, 1] == 255) &
+                              (original_array[:, :, 2] == 255))
+        output_image = Image.new('RGBA', original_image.size, (255, 255, 255, 255))
+        output_array = np.array(output_image)
+        output_array[is_not_white_mask] = [0, 0, 0, 255]
+        result_image = Image.fromarray(output_array, mode='RGBA')
         custom_log(f"[{datetime.now()}] Finished process_composite_to_mask (transparent mode).")
-        return black_background
+        return result_image
     if composite_image is None:
         mask = np.full(original_array.shape[:2], 0, dtype=np.uint8)
         transparent_areas = original_array[:, :, 3] == 0
@@ -140,28 +146,33 @@ def inpainting(mask_image, mask_prompt=None, text=None, negative_text=None, heig
         custom_log(f"[{datetime.now()}] --- inpainting END (Error) ---")
         return None, gr.update(visible=True, value=image)
 
-    if mask_prompt and mask_image and 'composite' in mask_image: # Check if mask_image is dict
-        custom_log(f"[{datetime.now()}] Error: Both maskPrompt and maskImage provided.")
-        custom_log(f"[{datetime.now()}] --- inpainting END (Error) ---")
-        raise ValueError("You must specify either maskPrompt or maskImage, but not both.")
-    if not mask_prompt and (not mask_image or 'composite' not in mask_image): # Check if mask_image is dict and has composite
-        custom_log(f"[{datetime.now()}] Error: Neither maskPrompt nor maskImage provided.")
-        custom_log(f"[{datetime.now()}] --- inpainting END (Error) ---")
-        raise ValueError("You must specify either maskPrompt or maskImage.")
+    mask_image_encoded = None # Initialize
 
-    mask_image_encoded = None
-    if mask_image and 'composite' in mask_image:
-        custom_log(f"[{datetime.now()}] Processing composite mask...")
+    # Prioritize mask_prompt
+    if mask_prompt and mask_prompt.strip(): # Check if mask_prompt is not None and not just whitespace
+        custom_log(f"[{datetime.now()}] Using mask_prompt, ignoring mask_image.")
+    elif mask_image and isinstance(mask_image, dict) and 'composite' in mask_image:
+        custom_log(f"[{datetime.now()}] Using mask_image, processing composite mask...")
         mask = process_composite_to_mask(mask_image['background'], mask_image['composite'])
         mask_image_encoded = process_and_encode_image(mask)
+        if not mask_image_encoded or len(mask_image_encoded) < 200:
+             custom_log(f"[{datetime.now()}] Error processing mask image: {mask_image_encoded}")
+             custom_log(f"[{datetime.now()}] --- inpainting END (Error) ---")
+             return None, gr.update(visible=True, value="Error processing mask image.")
         custom_log(f"[{datetime.now()}] Finished processing composite mask.")
+    else:
+        custom_log(f"[{datetime.now()}] Error: Neither maskPrompt nor a valid maskImage provided.")
+        custom_log(f"[{datetime.now()}] --- inpainting END (Error) ---")
+        raise ValueError("You must specify either maskPrompt or provide a maskImage with a composite layer.")
 
     custom_log(f"[{datetime.now()}] Inputs for in_painting_params:")
-    custom_log(f"[{datetime.now()}] Inpainting Image first 50 characters of Image: {image[:50]}")
-    custom_log(f"[{datetime.now()}] Inpainting Image first 50 characters of Mask: {mask_image_encoded[:50]}")
+    if isinstance(image, str):
+        custom_log(f"[{datetime.now()}] Inpainting Image first 50 characters of Image: {image[:50]}")
+    if isinstance(mask_image_encoded, str):
+        custom_log(f"[{datetime.now()}] Inpainting Image first 50 characters of Mask: {mask_image_encoded[:50]}")
     custom_log(f"[{datetime.now()}] mask_prompt: {mask_prompt}")
     custom_log(f"[{datetime.now()}] text: {text}")
-    custom_log(f"[{datetime.now()}] negative_text: {negative_text}")
+    custom_log(f"[{datetime.now()}] negative_text: {negative_text}")  
 
     try:
         in_painting_params = {
@@ -194,29 +205,35 @@ def outpainting(mask_image, mask_prompt=None, text=None, negative_text=None, out
         custom_log(f"[{datetime.now()}] --- outpainting END (Error) ---")
         return None, gr.update(visible=True, value=image)
 
-    if mask_prompt and mask_image and 'composite' in mask_image: # Check if mask_image is dict
-        custom_log(f"[{datetime.now()}] Error: Both maskPrompt and maskImage provided.")
-        custom_log(f"[{datetime.now()}] --- outpainting END (Error) ---")
-        raise ValueError("You must specify either maskPrompt or maskImage, but not both.")
-    if not mask_prompt and (not mask_image or 'composite' not in mask_image): # Check if mask_image is dict and has composite
-        custom_log(f"[{datetime.now()}] Error: Neither maskPrompt nor maskImage provided.")
-        custom_log(f"[{datetime.now()}] --- outpainting END (Error) ---")
-        raise ValueError("You must specify either maskPrompt or maskImage.")
+    mask_image_encoded = None # Initialize
 
-    mask_image_encoded = None
-    if mask_image and 'composite' in mask_image:
-        custom_log(f"[{datetime.now()}] Processing composite mask for outpainting...")
-        # For outpainting, the mask identifies the *original* image area
+    # Prioritize mask_prompt
+    if mask_prompt and mask_prompt.strip(): # Check if mask_prompt is not None and not just whitespace
+        custom_log(f"[{datetime.now()}] Using mask_prompt, ignoring mask_image.")
+        # mask_image_encoded remains None
+    elif mask_image and isinstance(mask_image, dict) and 'composite' in mask_image:
+        custom_log(f"[{datetime.now()}] Using mask_image, processing composite mask for outpainting...")
         mask = process_composite_to_mask(mask_image['background'], None) # Mask is original area
-        # The image needs alpha channel for transparency where padding was
         image_with_alpha = process_composite_to_mask(mask_image['background'], None, True) # Image has alpha
         image = process_and_encode_image(image_with_alpha)
         mask_image_encoded = process_and_encode_image(mask)
+        if not mask_image_encoded or len(mask_image_encoded) < 200:
+             custom_log(f"[{datetime.now()}] Error processing mask image: {mask_image_encoded}")
+             custom_log(f"[{datetime.now()}] --- outpainting END (Error) ---")
+             return None, gr.update(visible=True, value="Error processing mask image.")
         custom_log(f"[{datetime.now()}] Finished processing composite mask for outpainting.")
+    else:
+        # Neither valid mask_prompt nor valid mask_image provided
+        custom_log(f"[{datetime.now()}] Error: Neither maskPrompt nor a valid maskImage provided.")
+        custom_log(f"[{datetime.now()}] --- outpainting END (Error) ---")
+        raise ValueError("You must specify either maskPrompt or provide a maskImage with a composite layer.")
+
 
     custom_log(f"[{datetime.now()}] Inputs for out_painting_params:")
-    custom_log(f"[{datetime.now()}] Outpainting Image first 50 characters of Image: {image[:50]}")
-    custom_log(f"[{datetime.now()}] Outpainting Image first 50 characters of Mask: {mask_image_encoded[:50]}")
+    if isinstance(image, str):
+        custom_log(f"[{datetime.now()}] Outpainting Image first 50 characters of Image: {image[:50]}")
+    if isinstance(mask_image_encoded, str):
+        custom_log(f"[{datetime.now()}] Outpainting Image first 50 characters of Mask: {mask_image_encoded[:50]}")
     custom_log(f"[{datetime.now()}] mask_prompt: {mask_prompt}")
     custom_log(f"[{datetime.now()}] text: {text}")
     custom_log(f"[{datetime.now()}] negative_text: {negative_text}")  
