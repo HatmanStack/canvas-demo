@@ -6,8 +6,6 @@ env:
     AWS_ACCOUNT_ID: "631094035453"
     IMAGE_REPO_NAME: "production/canvas-demo"
     IMAGE_TAG: "latest"
-    # Enable Docker BuildKit
-    DOCKER_BUILDKIT: "1"
 
 phases:
   install:

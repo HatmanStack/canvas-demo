@@ -2,12 +2,22 @@ import os
 import base64
 import json
 import io
-import time
 import requests
 from dotenv import load_dotenv
 from PIL import Image
 from dataclasses import dataclass
 from datetime import datetime # Import datetime
+import time
+import boto3
+
+client = boto3.client('logs')
+
+def custom_log(message):
+    client.put_log_events(
+        logGroupName='/aws/lambda/canvas-demo',
+        logStreamName='custom-stream',
+        logEvents=[{'timestamp': int(time.time() * 1000), 'message': message}]
+    )
 
 load_dotenv()
 # Move custom exceptions to the top
@@ -26,34 +36,33 @@ class ImageConfig:
     format: str = "PNG"
 
 config = ImageConfig()
-amp_aws_id = os.getenv('AMP_AWS_ID')
 token = os.getenv('HF_TOKEN')
 
 headers = {"Authorization": f"Bearer {token}", "x-use-cache": "0", 'Content-Type': 'application/json'}
 
 class ImageProcessor:
     def __init__(self, image):
-        print(f"[{datetime.now()}] Initializing ImageProcessor...")
+        custom_log(f"[{datetime.now()}] Initializing ImageProcessor...")
         self.image = self._open_image(image)
-        print(f"[{datetime.now()}] ImageProcessor initialized.")
+        custom_log(f"[{datetime.now()}] ImageProcessor initialized.")
 
     def _open_image(self, image):
         """Convert input to PIL Image if necessary."""
-        print(f"[{datetime.now()}] Opening image...")
+        custom_log(f"[{datetime.now()}] Opening image...")
         if image is None:
-            print(f"[{datetime.now()}] Error: Input image is None.")
+            custom_log(f"[{datetime.now()}] Error: Input image is None.")
             raise ValueError("Input image is required.")
         opened_image = Image.open(image) if not isinstance(image, Image.Image) else image
-        print(f"[{datetime.now()}] Image opened successfully. Mode: {opened_image.mode}, Size: {opened_image.size}")
+        custom_log(f"[{datetime.now()}] Image opened successfully. Mode: {opened_image.mode}, Size: {opened_image.size}")
         return opened_image
 
     def _check_nsfw(self, attempts=1):
         """Check if image is NSFW using Hugging Face API."""
         global ENABLE_NSFW_CHECK 
         if not ENABLE_NSFW_CHECK:
-            print(f"[{datetime.now()}] NSFW check skipped (globally disabled).")
+            custom_log(f"[{datetime.now()}] NSFW check skipped (globally disabled).")
             return self
-        print(f"[{datetime.now()}] Checking NSFW (Attempt {attempts})...")
+        custom_log(f"[{datetime.now()}] Checking NSFW (Attempt {attempts})...")
         API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
         ENABLE_NSFW_CHECK = False
         # Prepare image data
@@ -62,72 +71,73 @@ class ImageProcessor:
         temp_buffer.seek(0)
 
         try:
-            print(f"[{datetime.now()}] Sending request to NSFW API: {API_URL}")
+            custom_log(f"[{datetime.now()}] Sending request to NSFW API: {API_URL}")
             response = requests.request("POST", API_URL, headers=headers, data=temp_buffer.getvalue())
-            print(f"[{datetime.now()}] Received NSFW API response (Status: {response.status_code}).")
+            custom_log(f"[{datetime.now()}] Received NSFW API response (Status: {response.status_code}).")
             json_response = json.loads(response.content.decode("utf-8"))
-            print(f"[{datetime.now()}] NSFW API JSON Response: {json_response}")
+            custom_log(f"[{datetime.now()}] NSFW API JSON Response: {json_response}")
 
             if "error" in json_response:
-                print(f"[{datetime.now()}] NSFW API Error: {json_response['error']}")
+                custom_log(f"[{datetime.now()}] NSFW API Error: {json_response['error']}")
                 if attempts > 30:
-                    print(f"[{datetime.now()}] NSFW check failed after max attempts.")
+                    custom_log(f"[{datetime.now()}] NSFW check failed after max attempts.")
                     raise ImageError("NSFW check failed after multiple attempts")
                 estimated_time = json_response.get("estimated_time", 5) # Default wait time
-                print(f"[{datetime.now()}] Waiting {estimated_time}s before retry...")
+                custom_log(f"[{datetime.now()}] Waiting {estimated_time}s before retry...")
                 time.sleep(estimated_time)
                 return self._check_nsfw(attempts + 1)
 
             nsfw_score = next((item['score'] for item in json_response if item['label'] == 'nsfw'), 0)
-            print(f"[{datetime.now()}] NSFW Score: {nsfw_score}")
+            custom_log(f"[{datetime.now()}] NSFW Score: {nsfw_score}")
 
             if nsfw_score > 0.5:
-                print(f"[{datetime.now()}] Image flagged as NSFW.")
+                custom_log(f"[{datetime.now()}] Image flagged as NSFW.")
                 return None # Indicate NSFW
 
-            print(f"[{datetime.now()}] Image passed NSFW check.")
+            custom_log(f"[{datetime.now()}] Image passed NSFW check.")
             return self # Indicate OK
 
         except json.JSONDecodeError as e:
-            print(f"[{datetime.now()}] NSFW check failed: Invalid JSON response - {str(e)}")
+            custom_log(f"[{datetime.now()}] NSFW check failed: Invalid JSON response - {str(e)}")
             raise ImageError(f"NSFW check failed: Invalid response format - {str(e)}")
         except requests.exceptions.RequestException as e:
-             print(f"[{datetime.now()}] NSFW check failed: Request error - {str(e)}")
+             custom_log(f"[{datetime.now()}] NSFW check failed: Request error - {str(e)}")
              # Optional: Retry logic for network errors
              if attempts > 5: # Fewer retries for network issues
                  raise ImageError(f"NSFW check failed due to network error: {str(e)}")
-             print(f"[{datetime.now()}] Waiting 5s before retry due to network error...")
+             custom_log(f"[{datetime.now()}] Waiting 5s before retry due to network error...")
              time.sleep(5)
              return self._check_nsfw(attempts + 1)
         except Exception as e:
-            print(f"[{datetime.now()}] NSFW check failed: Unexpected error - {str(e)}")
+            custom_log(f"[{datetime.now()}] NSFW check failed: Unexpected error - {str(e)}")
             if attempts > 30: # Use general retry limit
-                print(f"[{datetime.now()}] NSFW check failed after max attempts (unexpected error).")
+                custom_log(f"[{datetime.now()}] NSFW check failed after max attempts (unexpected error).")
                 raise ImageError("NSFW check failed after multiple attempts (unexpected error)")
-            print(f"[{datetime.now()}] Waiting 5s before retry due to unexpected error...")
+            custom_log(f"[{datetime.now()}] Waiting 5s before retry due to unexpected error...")
             time.sleep(5) # Generic wait
             return self._check_nsfw(attempts + 1)
 
     def _convert_color_mode(self):
         """Handle color mode conversion."""
-        print(f"[{datetime.now()}] Converting color mode (Current: {self.image.mode})...")
+        custom_log(f"[{datetime.now()}] Converting color mode (Current: {self.image.mode})...")
         if self.image.mode not in ('RGB', 'RGBA'):
             self.image = self.image.convert('RGB')
-            print(f"[{datetime.now()}] Converted to RGB.")
+            custom_log(f"[{datetime.now()}] Converted to RGB.")
         elif self.image.mode == 'RGBA':
             background = Image.new('RGB', self.image.size, (255, 255, 255))
             background.paste(self.image, mask=self.image.split()[3])
             self.image = background
-            print(f"[{datetime.now()}] Converted RGBA to RGB by pasting on white background.")
+            custom_log(f"[{datetime.now()}] Converted RGBA to RGB by pasting on white background.")
         else:
-             print(f"[{datetime.now()}] Color mode is already RGB.")
+             custom_log(f"[{datetime.now()}] Color mode is already RGB.")
         return self
 
-    def _resize_for_pixels(self, max_pixels):
-        """Resize image to meet pixel limit."""
-        print(f"[{datetime.now()}] Resizing for max pixels ({max_pixels})...")
+    def _resize_for_pixels(self, max_pixels=4194304):
+        """Resize image to meet the total pixel count limit."""
+        custom_log(f"[{datetime.now()}] Resizing for max pixels ({max_pixels})...")
         current_pixels = self.image.width * self.image.height
-        print(f"[{datetime.now()}] Current pixels: {current_pixels}")
+        custom_log(f"[{datetime.now()}] Current pixels: {current_pixels}")
+
         if current_pixels > max_pixels:
             aspect_ratio = self.image.width / self.image.height
             if aspect_ratio > 1:
@@ -136,38 +146,57 @@ class ImageProcessor:
             else:
                 new_height = int((max_pixels / aspect_ratio) ** 0.5)
                 new_width = int(new_height * aspect_ratio)
-            print(f"[{datetime.now()}] Resizing from {self.image.size} to ({new_width}, {new_height})")
+
+            # Ensure new dimensions are divisible by 16
+            new_width = (new_width // 16) * 16
+            new_height = (new_height // 16) * 16
+
+            custom_log(f"[{datetime.now()}] Resizing from {self.image.size} to ({new_width}, {new_height})...")
             self.image = self.image.resize((new_width, new_height), Image.LANCZOS)
         else:
-            print(f"[{datetime.now()}] No pixel resize needed.")
+            custom_log(f"[{datetime.now()}] No pixel resize needed.")
         return self
 
     def _ensure_dimensions(self, min_size=320, max_size=4096):
-        print(f"[{datetime.now()}] Ensuring dimensions (Min: {min_size}, Max: {max_size})...")
-        print(f"[{datetime.now()}] Current dimensions: {self.image.size}")
+        """Ensure image dimensions meet the size and divisibility requirements."""
+        custom_log(f"[{datetime.now()}] Ensuring dimensions (Min: {min_size}, Max: {max_size})...")
+        custom_log(f"[{datetime.now()}] Current dimensions: {self.image.size}")
         width, height = self.image.size
-        needs_resize = False
-        if width < min_size or width > max_size or height < min_size or height > max_size:
-            needs_resize = True
-            new_width = min(max(width, min_size), max_size)
-            new_height = min(max(height, min_size), max_size)
-            print(f"[{datetime.now()}] Resizing from {self.image.size} to ({new_width}, {new_height})")
-            self.image = self.image.resize((new_width, new_height), Image.LANCZOS)
-        else:
-            print(f"[{datetime.now()}] No dimension resize needed.")
+
+        # Ensure dimensions are within the allowed range
+        width = min(max(width, min_size), max_size)
+        height = min(max(height, min_size), max_size)
+
+        # Ensure dimensions are divisible by 16
+        width = (width // 16) * 16
+        height = (height // 16) * 16
+
+        # Check aspect ratio (1:4 to 4:1)
+        aspect_ratio = max(width / height, height / width)
+        if aspect_ratio > 4:
+            custom_log(f"[{datetime.now()}] Adjusting aspect ratio to meet 1:4 to 4:1 constraint...")
+            if width > height:
+                height = max(min_size, (width // 4) // 16 * 16)  # Adjust height
+            else:
+                width = max(min_size, (height // 4) // 16 * 16)  # Adjust width
+
+        custom_log(f"[{datetime.now()}] Resizing to ({width}, {height})...")
+        self.image = self.image.resize((width, height), Image.LANCZOS)
         return self
 
     def encode(self):
-        print(f"[{datetime.now()}] Encoding image to base64 PNG...")
+        custom_log(f"[{datetime.now()}] Encoding image to base64 PNG...")
         image_bytes = io.BytesIO()
         self.image.save(image_bytes, format='PNG', optimize=True)
+        custom_log(f"[{datetime.now()}] Image Bytes first 50 bytes: {image_bytes.getvalue()[:50]}")
         encoded_string = base64.b64encode(image_bytes.getvalue()).decode('utf8')
-        print(f"[{datetime.now()}] Image encoded (Length: {len(encoded_string)}).")
+        custom_log(f"[{datetime.now()}] Encoded string first 50 chars: {encoded_string[:50]}")
+        custom_log(f"[{datetime.now()}] Image encoded (Length: {len(encoded_string)}).")
         return encoded_string
 
     def process(self, min_size=320, max_size=4096, max_pixels=4194304):
         """Process image with all necessary transformations."""
-        print(f"[{datetime.now()}] --- Starting ImageProcessor.process ---")
+        custom_log(f"[{datetime.now()}] --- Starting ImageProcessor.process ---")
         result = (self
             ._convert_color_mode()
             ._resize_for_pixels(max_pixels)
@@ -175,25 +204,25 @@ class ImageProcessor:
             ._check_nsfw())  # Add NSFW check before encoding
 
         if result is None:
-            print(f"[{datetime.now()}] Image processing stopped due to NSFW flag.")
+            custom_log(f"[{datetime.now()}] Image processing stopped due to NSFW flag.")
             raise ImageError("Image <b>Not Appropriate</b>")
 
         encoded_image = result.encode()
-        print(f"[{datetime.now()}] --- Finished ImageProcessor.process ---")
+        custom_log(f"[{datetime.now()}] --- Finished ImageProcessor.process ---")
         return encoded_image
 
 def process_and_encode_image(image, **kwargs):
     """Process and encode image with default parameters."""
-    print(f"[{datetime.now()}] --- Starting process_and_encode_image ---")
+    custom_log(f"[{datetime.now()}] --- Starting process_and_encode_image ---")
     try:
         processed_image = ImageProcessor(image).process(**kwargs)
-        print(f"[{datetime.now()}] --- Finished process_and_encode_image (Success) ---")
+        custom_log(f"[{datetime.now()}] --- Finished process_and_encode_image (Success) ---")
         return processed_image
     except ImageError as e:
-        print(f"[{datetime.now()}] --- Finished process_and_encode_image (ImageError: {e.message}) ---")
+        custom_log(f"[{datetime.now()}] --- Finished process_and_encode_image (ImageError: {e.message}) ---")
         return e.message # Return the error message string
     except Exception as e:
-        print(f"[{datetime.now()}] --- Finished process_and_encode_image (Unexpected Error: {str(e)}) ---")
+        custom_log(f"[{datetime.now()}] --- Finished process_and_encode_image (Unexpected Error: {str(e)}) ---")
         # Log the full traceback here if needed for debugging
         logging.exception("Unexpected error in process_and_encode_image")
         return f"An unexpected error occurred during image processing: {str(e)}"

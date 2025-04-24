@@ -1,13 +1,21 @@
 import gradio as gr
 from functions import *
-import logging
 import sys
 from dataclasses import dataclass
 import os # Ensure os is imported
 from datetime import datetime # Import datetime
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
-logging.info("--- app.py execution started (via logging) ---")
-print(f"[{datetime.now()}] Starting app.py...", flush=True)
+import boto3
+import time
+client = boto3.client('logs')
+
+def custom_log(message):
+    client.put_log_events(
+        logGroupName='/aws/lambda/canvas-demo',
+        logStreamName='custom-stream',
+        logEvents=[{'timestamp': int(time.time() * 1000), 'message': message}]
+    )
+
+custom_log(f"[{datetime.now()}] Starting app.py...")
 
 @dataclass
 class Config:
@@ -21,24 +29,24 @@ class Config:
 config = Config()
 
 def update_mask_editor(img):
-    print(f"[{datetime.now()}] Running update_mask_editor...", flush=True)
+    custom_log(f"[{datetime.now()}] Running update_mask_editor...")
     if img['background'] is None:
         return None
     return create_padded_image(img)
 
 def create_advanced_options():
-    print(f"[{datetime.now()}] Creating advanced options UI components...", flush=True)
+    custom_log(f"[{datetime.now()}] Creating advanced options UI components...")
     negative_text = gr.Textbox(label="Negative Prompt", placeholder="Describe what not to include (1-1024 characters)", max_lines=1)
     width = gr.Slider(minimum=config.min_size, maximum=config.max_size, step=config.step_size, value=config.default_size, label="Width")
     height = gr.Slider(minimum=config.min_size, maximum=config.max_size, step=config.step_size, value=config.default_size, label="Height")
     quality = gr.Radio(choices=["standard", "premium"], value="standard", label="Quality")
     cfg_scale = gr.Slider(minimum=1.0, maximum=20.0, step=0.1, value=config.default_cfg_scale, label="CFG Scale")
     seed = gr.Slider(minimum=1, maximum=2000, step=1, value=config.default_seed, label="Seed")
-    print(f"[{datetime.now()}] Finished creating advanced options UI components.", flush=True)
+    custom_log(f"[{datetime.now()}] Finished creating advanced options UI components.")
     return negative_text, width, height, quality, cfg_scale, seed
 
 # Gradio Interface
-print(f"[{datetime.now()}] Setting up Gradio Blocks...", flush=True)
+custom_log(f"[{datetime.now()}] Setting up Gradio Blocks...")
 with gr.Blocks() as demo:
     gr.HTML("""
     <style>
@@ -61,7 +69,7 @@ with gr.Blocks() as demo:
         <h1>AWS Nova Canvas Image Generation</h1>""", elem_classes="center-markdown" )
 
     with gr.Tab("Text to Image"):
-        print(f"[{datetime.now()}] Setting up Text to Image tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Text to Image tab...")
         with gr.Column():
             gr.Markdown("""
                 Generate an image from a text prompt using the AWS Nova Canvas model.
@@ -72,14 +80,14 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             with gr.Row():
-                print(f"[{datetime.now()}] Binding Text to Image 'Generate Prompt' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Text to Image 'Generate Prompt' button...")
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-                print(f"[{datetime.now()}] Binding Text to Image 'Generate Image' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Text to Image 'Generate Image' button...")
                 gr.Button("Generate Image").click(text_to_image, inputs=[prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Inpainting"):
-        print(f"[{datetime.now()}] Setting up Inpainting tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Inpainting tab...")
         with gr.Column():
             gr.Markdown("""
             Modify specific areas of your image using inpainting. Upload your base image, then specify areas to edit using either
@@ -97,23 +105,23 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Describe what to generate (1-1024 characters) in the masked area", max_lines=4)
             output = gr.Image()
             with gr.Row():
-                print(f"[{datetime.now()}] Binding Inpainting 'Generate Prompt' button...", flush=True)
-                #gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-                print(f"[{datetime.now()}] Binding Inpainting 'Generate Image' button...", flush=True)
-                #gr.Button("Generate Image").click(inpainting, inputs=[mask_image,mask_prompt, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
+                custom_log(f"[{datetime.now()}] Binding Inpainting 'Generate Prompt' button...")
+                gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
+                custom_log(f"[{datetime.now()}] Binding Inpainting 'Generate Image' button...")
+                gr.Button("Generate Image").click(inpainting, inputs=[mask_image,mask_prompt, prompt, negative_text, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Outpainting"):
-        print(f"[{datetime.now()}] Setting up Outpainting tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Outpainting tab...")
         with gr.Column():
             gr.Markdown("""
                 Modify areas outside of your image using outpainting. Add transparent padding for a border, and use the crop feature to
                 position your base image. The model can infer the mask from your Mask Prompt. Choose between precise mask boundaries or
                 smooth transitions between masked and unmasked areas, and optionally provide a prompt to guide how masked areas are filled.
                 """, elem_classes="center-markdown")
-            mask_image = gr.ImageMask(type="pil", label="Draw mask (black areas will be edited)")
+            mask_image = gr.ImageMask(type="pil", label="Draw mask (white areas will be edited)")
             
-            print(f"[{datetime.now()}] Binding Outpainting 'Create Padding' button...", flush=True)
+            custom_log(f"[{datetime.now()}] Binding Outpainting 'Create Padding' button...")
             gr.Button("Create Padding").click(fn=update_mask_editor, inputs=[mask_image], outputs=[mask_image])
 
             with gr.Accordion("Optional Mask Prompt", open=False):
@@ -125,14 +133,14 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Describe what to generate (1-1024 characters)", max_lines=4)
             output = gr.Image()
             with gr.Row():
-                print(f"[{datetime.now()}] Binding Outpainting 'Generate Prompt' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Outpainting 'Generate Prompt' button...")
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-                print(f"[{datetime.now()}] Binding Outpainting 'Generate Image' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Outpainting 'Generate Image' button...")
                 gr.Button("Generate Image").click(outpainting, inputs=[mask_image, mask_prompt, prompt, negative_text, outpainting_mode, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Image Variation"):
-        print(f"[{datetime.now()}] Setting up Image Variation tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Image Variation tab...")
         with gr.Column():
             gr.Markdown("""
                 Create a variation image based on up to 5 other images and a Similarity slider available in options.  You can add a prompt to direct the
@@ -141,18 +149,18 @@ with gr.Blocks() as demo:
             images = gr.File(type='filepath', label="Input Images", file_count="multiple", file_types=["image"])
             with gr.Accordion("Optional Prompt", open=False):
                 prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
-                print(f"[{datetime.now()}] Binding Image Variation 'Generate Prompt' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Image Variation 'Generate Prompt' button...")
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
             with gr.Accordion("Advanced Options", open=False):
                 similarity_strength = gr.Slider(minimum=0.2, maximum=1.0, step=0.1, value=0.7, label="Similarity Strength")
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
-            print(f"[{datetime.now()}] Binding Image Variation 'Generate Image' button...", flush=True)
+            custom_log(f"[{datetime.now()}] Binding Image Variation 'Generate Image' button...")
             gr.Button("Generate Image").click(image_variation, inputs=[images, prompt, negative_text, similarity_strength, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
     with gr.Tab("Image Conditioning"):
-        print(f"[{datetime.now()}] Setting up Image Conditioning tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Image Conditioning tab...")
         with gr.Column():
             gr.Markdown("""
                 Generate an image conditioned by an input image.  You need to add a text prompt to direct the model (required).
@@ -168,14 +176,14 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             output = gr.Image()
             with gr.Row():
-                print(f"[{datetime.now()}] Binding Image Conditioning 'Generate Prompt' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Image Conditioning 'Generate Prompt' button...")
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-                print(f"[{datetime.now()}] Binding Image Conditioning 'Generate Image' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Image Conditioning 'Generate Image' button...")
                 gr.Button("Generate Image").click(image_conditioning, inputs=[condition_image, prompt, negative_text, control_mode, control_strength, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Color Guided"):
-        print(f"[{datetime.now()}] Setting up Color Guided tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Color Guided tab...")
         with gr.Column():
             gr.Markdown("""
                 Generate an image using a color palette.  This mode requires a text prompt and a color list.  If you choose to include an image, the subject and style will be used as a reference.
@@ -196,14 +204,14 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt", placeholder="Enter a text prompt (1-1024 characters)", max_lines=4)
             output = gr.Image()
             with gr.Row():
-                print(f"[{datetime.now()}] Binding Color Guided 'Generate Prompt' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Color Guided 'Generate Prompt' button...")
                 gr.Button("Generate Prompt").click(generate_nova_prompt, outputs=prompt)
-                print(f"[{datetime.now()}] Binding Color Guided 'Generate Image' button...", flush=True)
+                custom_log(f"[{datetime.now()}] Binding Color Guided 'Generate Image' button...")
                 gr.Button("Generate Image").click(color_guided_content, inputs=[prompt, reference_image, negative_text, colors, height, width, quality, cfg_scale, seed], outputs=[output, error_box])
 
 
     with gr.Tab("Background Removal"):
-        print(f"[{datetime.now()}] Setting up Background Removal tab...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Background Removal tab...")
         with gr.Column():
             gr.Markdown("""
                 Remove the background from an image.
@@ -211,28 +219,28 @@ with gr.Blocks() as demo:
             image = gr.Image(type='pil', label="Input Image")
             error_box = gr.Markdown(visible=False, label="Error", elem_classes="center-markdown")
             output = gr.Image()
-            print(f"[{datetime.now()}] Binding Background Removal 'Generate Image' button...", flush=True)
+            custom_log(f"[{datetime.now()}] Binding Background Removal 'Generate Image' button...")
             gr.Button("Generate Image").click(background_removal, inputs=image, outputs=[output, error_box])
 
     with gr.Accordion("Tips", open=False):
-        print(f"[{datetime.now()}] Setting up Tips section...", flush=True)
+        custom_log(f"[{datetime.now()}] Setting up Tips section...")
         gr.Markdown("On Inference Speed: Resolution (width/height), and quality all have an impact on Inference Speed.")
         gr.Markdown("On Negation: For example, consider the prompt \"a rainy city street at night with no people\". The model might interpret \"people\" as a directive of what to include instead of omit. To generate better results, you could use the prompt \"a rainy city street at night\" with a negative prompt \"people\".")
         gr.Markdown("On Prompt Length: When diffusion models were first introduced, they could process only 77 tokens. While new techniques have extended this limit, they remain bound by their training data. AWS Nova Canvas limits input by character length instead, ensuring no characters beyond the set limit (1000) are considered in the generated model.")
 
     
-print(f"[{datetime.now()}] Finished setting up Gradio Blocks.", flush=True)
+custom_log(f"[{datetime.now()}] Finished setting up Gradio Blocks.")
 
 # Decide how to launch based on environment (local vs Lambda)
 if __name__ == "__main__":
-    print(f"[{datetime.now()}] --- INSIDE if __name__ == '__main__' ---", flush=True) # ADD THIS LINE
+    custom_log(f"[{datetime.now()}] --- INSIDE if __name__ == '__main__' ---") # ADD THIS LINE
     
     if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
         # Running in Lambda
         server_port = int(os.environ.get("AWS_LAMBDA_HTTP_PORT", 8080))
-        print(f"[{datetime.now()}] Launching Gradio for Lambda on 0.0.0.0:{server_port}", flush=True)
+        custom_log(f"[{datetime.now()}] Launching Gradio for Lambda on 0.0.0.0:{server_port}")
         demo.launch(server_name="0.0.0.0", server_port=server_port)
     else:
         # Running locally
-        print(f"[{datetime.now()}] Launching Gradio locally...", flush=True)
+        custom_log(f"[{datetime.now()}] Launching Gradio locally...")
         demo.launch(debug=True) # Keep debug=True for local troubleshooting if needed

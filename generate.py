@@ -1,6 +1,5 @@
 import os
 import base64
-import boto3
 import json
 import logging
 from datetime import datetime # Ensure datetime is imported
@@ -8,7 +7,18 @@ from dotenv import load_dotenv
 from functools import wraps
 from botocore.config import Config
 from botocore.exceptions import ClientError
+import time
+import boto3
 
+client = boto3.client('logs')
+
+def custom_log(message):
+    client.put_log_events(
+        logGroupName='/aws/lambda/canvas-demo',
+        logStreamName='custom-stream',
+        logEvents=[{'timestamp': int(time.time() * 1000), 'message': message}]
+    )
+    
 load_dotenv()
 # Move custom exceptions to the top
 class ImageError(Exception):
@@ -44,7 +54,7 @@ rate_limit_message = """<div style='text-align: center;'>Rate limit exceeded. Ch
 class BedrockClient:
 
     def __init__(self, aws_id, aws_secret, model_id, timeout=300):
-        print(f"[{datetime.now()}] Initializing BedrockClient...")
+        custom_log(f"[{datetime.now()}] Initializing BedrockClient...")
         self.model_id = model_id
         self.bedrock_client = boto3.client(
             service_name='bedrock-runtime',
@@ -59,11 +69,11 @@ class BedrockClient:
             aws_secret_access_key=aws_secret,
             region_name=bucket_region
         )
-        print(f"[{datetime.now()}] BedrockClient initialized.")
+        custom_log(f"[{datetime.now()}] BedrockClient initialized.")
 
     def _store_response(self, response_body, image_data=None):
         """Store response and image in S3."""
-        print(f"[{datetime.now()}] Storing response/image to S3...")
+        custom_log(f"[{datetime.now()}] Storing response/image to S3...")
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f') # Added microseconds for uniqueness
 
         # Store response body
@@ -84,18 +94,18 @@ class BedrockClient:
                 Body=image_data,
                 ContentType='image/png'
             )
-        print(f"[{datetime.now()}] Stored response/image to S3.")
+        custom_log(f"[{datetime.now()}] Stored response/image to S3.")
 
 
     def _handle_error(self, err):
         """Handle client errors"""
-        print(f"[{datetime.now()}] Handling ClientError: {err.response['Error']['Message']}")
+        custom_log(f"[{datetime.now()}] Handling ClientError: {err.response['Error']['Message']}")
         raise ImageError(f"Client error: {err.response['Error']['Message']}")
 
     @handle_bedrock_errors
     def generate_image(self, body):
         """Generate image using Bedrock service."""
-        print(f"[{datetime.now()}] Calling Bedrock invoke_model ({self.model_id})...")
+        custom_log(f"[{datetime.now()}] Calling Bedrock invoke_model ({self.model_id})...")
         # Ensure body is bytes if invoke_model expects it, or string if it expects JSON string
         body_bytes = body.encode('utf-8') if isinstance(body, str) else body
         response = self.bedrock_client.invoke_model(
@@ -104,11 +114,11 @@ class BedrockClient:
             accept="application/json",
             contentType="application/json"
         )
-        print(f"[{datetime.now()}] Bedrock invoke_model finished.")
+        custom_log(f"[{datetime.now()}] Bedrock invoke_model finished.")
 
-        print(f"[{datetime.now()}] Processing Bedrock response...")
+        custom_log(f"[{datetime.now()}] Processing Bedrock response...")
         image_data = self._process_response(response)
-        print(f"[{datetime.now()}] Finished processing response.")
+        custom_log(f"[{datetime.now()}] Finished processing response.")
 
         # Parse the original body string back to dict for storage if needed
         body_dict_for_storage = json.loads(body) if isinstance(body, str) else body # Adjust if body isn't always JSON string
@@ -121,16 +131,16 @@ class BedrockClient:
 
     @handle_bedrock_errors
     def generate_prompt(self, body):
-        print(f"[{datetime.now()}] Calling Bedrock converse ({self.model_id})...")
+        custom_log(f"[{datetime.now()}] Calling Bedrock converse ({self.model_id})...")
         response = self.bedrock_client.converse(
             modelId=self.model_id,
             messages=body # Assuming body is already the correct format for converse
         )
-        print(f"[{datetime.now()}] Bedrock converse finished.")
+        custom_log(f"[{datetime.now()}] Bedrock converse finished.")
 
-        print(f"[{datetime.now()}] Processing Bedrock response...")
+        custom_log(f"[{datetime.now()}] Processing Bedrock response...")
         result = self._process_response(response)
-        print(f"[{datetime.now()}] Finished processing response.")
+        custom_log(f"[{datetime.now()}] Finished processing response.")
         return result
         # Error handling is now done by the decorator
 
@@ -167,7 +177,7 @@ class BedrockClient:
 
 
 def check_rate_limit(body):
-    print(f"[{datetime.now()}] Checking rate limit...")
+    custom_log(f"[{datetime.now()}] Checking rate limit...")
     try:
         body_dict = json.loads(body)
     except json.JSONDecodeError:
@@ -191,21 +201,21 @@ def check_rate_limit(body):
     rate_data = {'premium': [], 'standard': []} # Default structure
     try:
         # Get current rate limit data
-        print(f"[{datetime.now()}] Getting rate limit data from S3...")
+        custom_log(f"[{datetime.now()}] Getting rate limit data from S3...")
         response = s3_client.get_object(
             Bucket=nova_image_bucket,
             Key='rate-limit/jsonData.json'
         )
         rate_data = json.loads(response['Body'].read().decode('utf-8'))
-        print(f"[{datetime.now()}] Got rate limit data from S3.")
+        custom_log(f"[{datetime.now()}] Got rate limit data from S3.")
     except ClientError as e:
         if e.response['Error']['Code'] == 'NoSuchKey':
-            print(f"[{datetime.now()}] Rate limit file not found. Initializing.")
+            custom_log(f"[{datetime.now()}] Rate limit file not found. Initializing.")
             rate_data = {'premium': [], 'standard': []}
         else:
             raise ImageError(f"Failed to check rate limit: {str(e)}")
     except Exception as e:
-        print(f"[{datetime.now()}] Error getting/decoding rate limit data: {e}")
+        custom_log(f"[{datetime.now()}] Error getting/decoding rate limit data: {e}")
         rate_data = {'premium': [], 'standard': []} # Reset if corrupted or other error
 
     # Get current timestamp
@@ -234,34 +244,34 @@ def check_rate_limit(body):
             rate_data['standard'].append(current_time)
 
     if limit_exceeded:
-        print(f"[{datetime.now()}] Rate limit exceeded.")
+        custom_log(f"[{datetime.now()}] Rate limit exceeded.")
         raise ImageError(rate_limit_message)
 
     # Update rate limit file
     try:
-        print(f"[{datetime.now()}] Updating rate limit data in S3...")
+        custom_log(f"[{datetime.now()}] Updating rate limit data in S3...")
         s3_client.put_object(
             Bucket=nova_image_bucket,
             Key='rate-limit/jsonData.json',
             Body=json.dumps(rate_data),
             ContentType='application/json'
         )
-        print(f"[{datetime.now()}] Updated rate limit data in S3.")
+        custom_log(f"[{datetime.now()}] Updated rate limit data in S3.")
     except Exception as e:
-        print(f"[{datetime.now()}] Warning: Failed to update rate limit data in S3: {e}")
+        custom_log(f"[{datetime.now()}] Warning: Failed to update rate limit data in S3: {e}")
         # Decide if this should be fatal or just logged
 
-    print(f"[{datetime.now()}] Rate limit check passed.")
+    custom_log(f"[{datetime.now()}] Rate limit check passed.")
 
 
 def generate_image(body):
     """Generate image using Bedrock service."""
     start_time = datetime.now()
-    print(f"[{start_time}] --- generate_image START ---")
+    custom_log(f"[{start_time}] --- generate_image START ---")
     aws_id = os.getenv('AMP_AWS_ID') # Use specific credentials for this function
     aws_secret = os.getenv('AMP_AWS_SECRET')
     if not aws_id or not aws_secret:
-        print(f"[{datetime.now()}] Missing AWS credentials for generate_image.")
+        custom_log(f"[{datetime.now()}] Missing AWS credentials for generate_image.")
         return "Configuration error: Missing AWS credentials." # Return error message
 
     try:
@@ -275,15 +285,15 @@ def generate_image(body):
 
         result = client.generate_image(body)
         end_time = datetime.now()
-        print(f"[{end_time}] --- generate_image END (Success). Duration: {end_time - start_time} ---")
+        custom_log(f"[{end_time}] --- generate_image END (Success). Duration: {end_time - start_time} ---")
         return result
     except ImageError as e:
         end_time = datetime.now()
-        print(f"[{end_time}] --- generate_image END (ImageError: {e.message}). Duration: {end_time - start_time} ---")
+        custom_log(f"[{end_time}] --- generate_image END (ImageError: {e.message}). Duration: {end_time - start_time} ---")
         return e.message # Return the error message string
     except Exception as e:
         end_time = datetime.now()
-        print(f"[{end_time}] --- generate_image END (Unexpected Error: {str(e)}). Duration: {end_time - start_time} ---")
+        custom_log(f"[{end_time}] --- generate_image END (Unexpected Error: {str(e)}). Duration: {end_time - start_time} ---")
         logging.exception("Unexpected error in generate_image function")
         return f"An unexpected error occurred: {str(e)}" # Return generic error
 
