@@ -61,8 +61,8 @@ AWS_ID=<aws>
 AWS_SECRET=<aws>
 NOVA_IMAGE_BUCKET=<bucket name>
 BUCKET_REGION=<bucket region>
-HF_TOKEN=<hugging face token with either read or write capabilities for content moderation>
-RATE_LIMIT=<Around .04 per image for Stanard quality and .08 for Premium, each rate_limit unit counts as 1 Standard, Refreshes every 20 minutes>
+HF_TOKEN=<token>
+RATE_LIMIT=<>
 ```
 
 ## Technical Details
