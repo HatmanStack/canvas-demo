@@ -3,3 +3,6 @@ boto3
 python-dotenv
 requests
 gradio
+aiohttp
+psutil
+numpy

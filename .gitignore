@@ -1,3 +1,6 @@
 .env
-app_panic_test.py
+CLAUDE.md
+test_image_display.py
+diagnose_auth.py
+diagnose_lambda_image_issue.py
 __pycache__/
