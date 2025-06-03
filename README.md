@@ -1,6 +1,7 @@
-# AWS Nova Canvas Image Generation - Optimized
-
 <div align="center">
+<h1>
+AWS Nova Canvas Image Generation
+</h1>
 <h1>
   <img width="300" height="300" src="sloth.jpg" alt="canvas-demo icon">
 </h1>
@@ -144,22 +145,10 @@ src/
 
 ## 🚨 Error Handling
 
-The optimized version includes comprehensive error handling:
-
 - **Graceful Degradation**: Services continue operating even if non-critical components fail
 - **User-Friendly Messages**: Clear error messages without technical details
 - **Automatic Retries**: Intelligent retry logic for transient failures
 - **Circuit Breakers**: Prevent cascade failures from external services
-
-## 📈 Performance Improvements
-
-| Metric | Original | Optimized | Improvement |
-|--------|----------|-----------|-------------|
-| Cold Start Time | ~15s | ~5s | 66% faster |
-| Memory Usage | ~300MB | ~180MB | 40% reduction |
-| Logging Overhead | High | Minimal | 70% reduction |
-| Error Recovery | Manual | Automatic | 100% improvement |
-| NSFW Check Time | ~5s | ~2s | 60% faster |
 
 ## 🔒 Security
 
