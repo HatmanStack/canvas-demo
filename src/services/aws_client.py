@@ -35,7 +35,7 @@ class AWSClientManager:
                     service_name='bedrock-runtime',
                     aws_access_key_id=config.aws_access_key_id,
                     aws_secret_access_key=config.aws_secret_access_key,
-                    region_name=config.aws_region,
+                    region_name='us-east-1',  # Nova Canvas only available in us-east-1
                     config=Config(
                         read_timeout=config.bedrock_timeout,
                         max_pool_connections=10,

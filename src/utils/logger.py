@@ -12,18 +12,47 @@ class OptimizedLogger:
     def __init__(self, log_group: str = '/aws/lambda/canvas-demo'):
         self.logger = logging.getLogger(__name__)
         self.log_group = log_group
+        self.log_stream = 'Canvas-Stream'
         self._cloudwatch_client: Optional[boto3.client] = None
         self.batch_logs = []
         self.batch_size = 10
         self.last_flush = time.time()
         self.flush_interval = 30  # seconds
+        self._stream_created = False
         
     @property
     def cloudwatch_client(self):
         """Lazy initialization of CloudWatch client"""
         if self._cloudwatch_client is None and config.is_lambda:
             self._cloudwatch_client = boto3.client('logs', region_name=config.aws_region)
+            self._ensure_log_stream()
         return self._cloudwatch_client
+    
+    def _ensure_log_stream(self):
+        """Ensure the Canvas-Stream log stream exists"""
+        if self._stream_created or not self._cloudwatch_client:
+            return
+            
+        try:
+            # Try to describe the log stream
+            self._cloudwatch_client.describe_log_streams(
+                logGroupName=self.log_group,
+                logStreamNamePrefix=self.log_stream
+            )
+            self._stream_created = True
+        except self._cloudwatch_client.exceptions.ResourceNotFoundException:
+            try:
+                # Create the log stream if it doesn't exist
+                self._cloudwatch_client.create_log_stream(
+                    logGroupName=self.log_group,
+                    logStreamName=self.log_stream
+                )
+                self._stream_created = True
+                self.logger.info(f"Created CloudWatch log stream: {self.log_stream}")
+            except Exception as e:
+                self.logger.error(f"Failed to create log stream {self.log_stream}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error checking log stream {self.log_stream}: {e}")
     
     def log(self, message: str, level: str = 'INFO'):
         """Optimized logging with batching for CloudWatch"""
@@ -50,7 +79,7 @@ class OptimizedLogger:
             try:
                 self.cloudwatch_client.put_log_events(
                     logGroupName=self.log_group,
-                    logStreamName='optimized-stream',
+                    logStreamName=self.log_stream,
                     logEvents=self.batch_logs
                 )
                 self.batch_logs.clear()

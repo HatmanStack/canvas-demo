@@ -91,6 +91,18 @@ docker run -p 8080:8080 --env-file .env canvas-demo
 ### AWS Lambda Deployment
 The application automatically detects Lambda environment and configures accordingly.
 
+#### CloudWatch Logging
+When deployed to Lambda, all application logs are automatically sent to CloudWatch:
+- **Log Group**: `/aws/lambda/canvas-demo` (auto-created by AWS)
+- **Log Stream**: `Canvas-Stream` (auto-created by application)
+- **Log Format**: `[timestamp] message`
+- **Batching**: Logs are batched for performance (10 logs or 30 seconds)
+
+To view logs in AWS Console:
+1. Navigate to CloudWatch > Log groups
+2. Select `/aws/lambda/canvas-demo`
+3. Click on `Canvas-Stream` log stream
+
 ## 📊 Monitoring & Health Checks
 
 ### Health Check Endpoint
