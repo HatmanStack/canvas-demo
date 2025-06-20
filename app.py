@@ -56,7 +56,23 @@ def create_advanced_options():
 # Gradio Interface with optimized structure
 app_logger.info("Setting up Gradio interface")
 
-with gr.Blocks(title="AWS Nova Canvas") as demo:
+check_button_script = """
+<script>
+setTimeout(() => {
+    // Find the button by the ID you assigned.
+    const button = document.getElementById('text_to_image_generate_button');
+    
+    // Check if the button exists and still has the 'disabled' attribute.
+    // Gradio buttons are disabled until the backend is connected.
+    if (button && button.hasAttribute('disabled')) {
+        console.log('UI appears non-interactive; likely cold start issue. Forcing refresh.');
+        location.reload();
+    }
+}, 15000); // 15-second timeout
+</script>
+"""
+
+with gr.Blocks(title="AWS Nova Canvas", head=check_button_script) as demo:
     # Custom CSS for better UI
     gr.HTML("""
     <style>
@@ -107,7 +123,7 @@ with gr.Blocks(title="AWS Nova Canvas") as demo:
                     canvas_handlers.generate_nova_prompt, 
                     outputs=txt2img_prompt
                 )
-                gr.Button("Generate Image").click(
+                gr.Button("Generate Image", elem_id="text_to_image_generate_button").click(
                     canvas_handlers.text_to_image,
                     inputs=[txt2img_prompt, txt2img_negative_text, txt2img_height, txt2img_width, txt2img_quality, txt2img_cfg_scale, txt2img_seed],
                     outputs=[output, txt2img_error_box]
