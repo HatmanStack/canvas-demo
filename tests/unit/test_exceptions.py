@@ -1,7 +1,6 @@
 """Tests for custom exceptions and decorators."""
 
 import os
-from unittest.mock import patch
 
 # Ensure test environment vars are set before any imports
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "test-access-key")

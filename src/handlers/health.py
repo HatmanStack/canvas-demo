@@ -12,7 +12,7 @@ from src.utils.logger import app_logger
 class HealthCheck:
     """Health check and monitoring for the Canvas Demo application"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client_manager = AWSClientManager()
         self.start_time = time.time()
         self.request_count = 0

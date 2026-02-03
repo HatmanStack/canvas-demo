@@ -10,8 +10,12 @@ load_dotenv()
 @dataclass
 class AppConfig:
     # AWS Configuration - Use non-reserved names for Lambda
-    aws_access_key_id: str = os.getenv("AMP_AWS_ID", os.getenv("AWS_ID", ""))
-    aws_secret_access_key: str = os.getenv("AMP_AWS_SECRET", os.getenv("AWS_SECRET", ""))
+    aws_access_key_id: str = os.getenv(
+        "AMP_AWS_ID", os.getenv("AWS_ID", os.getenv("AWS_ACCESS_KEY_ID", ""))
+    )
+    aws_secret_access_key: str = os.getenv(
+        "AMP_AWS_SECRET", os.getenv("AWS_SECRET", os.getenv("AWS_SECRET_ACCESS_KEY", ""))
+    )
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
     bucket_region: str = os.getenv("BUCKET_REGION", "us-west-2")
     nova_image_bucket: str = os.getenv("NOVA_IMAGE_BUCKET", "")

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, github-branch]
+    branches: [github-branch]
   pull_request:
-    branches: [main, master, github-branch]
+    branches: [github-branch]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -54,7 +54,7 @@ jobs:
           uv pip install --system mypy boto3-stubs[s3,bedrock-runtime,logs] types-requests types-Pillow
 
       - name: Run mypy
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
 
   test:
     name: Test

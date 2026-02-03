@@ -110,9 +110,7 @@ def mock_bedrock_response(sample_image_base64):
 @pytest.fixture
 def mock_bedrock_text_response():
     """Sample Bedrock text generation response."""
-    return {
-        "output": {"message": {"content": [{"text": "A beautiful sunset over mountains"}]}}
-    }
+    return {"output": {"message": {"content": [{"text": "A beautiful sunset over mountains"}]}}}
 
 
 @pytest.fixture

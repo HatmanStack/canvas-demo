@@ -1,18 +1,10 @@
 """Tests for rate limiter with optimistic locking."""
 
 import json
-import os
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Skip all tests in this module if AWS credentials are not configured
-# These tests require the full application context
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID") == "test-access-key",
-    reason="Rate limiter tests require real AWS credentials or full mock setup",
-)
 
 
 class TestOptimizedRateLimiter:
@@ -36,9 +28,7 @@ class TestOptimizedRateLimiter:
         _, mock_s3 = mock_rate_limiter_deps
         mock_s3.get_object.return_value = {
             "ETag": '"abc123"',
-            "Body": MagicMock(
-                read=lambda: json.dumps({"premium": [], "standard": []}).encode()
-            ),
+            "Body": MagicMock(read=lambda: json.dumps({"premium": [], "standard": []}).encode()),
         }
 
         with patch("requests.put") as mock_put:
@@ -149,6 +139,11 @@ class TestRateLimitLogic:
         premium_dict = json.loads(premium_body)
         no_quality_dict = json.loads(no_quality_body)
 
-        assert standard_dict.get("imageGenerationConfig", {}).get("quality", "standard") == "standard"
+        assert (
+            standard_dict.get("imageGenerationConfig", {}).get("quality", "standard") == "standard"
+        )
         assert premium_dict.get("imageGenerationConfig", {}).get("quality", "standard") == "premium"
-        assert no_quality_dict.get("imageGenerationConfig", {}).get("quality", "standard") == "standard"
+        assert (
+            no_quality_dict.get("imageGenerationConfig", {}).get("quality", "standard")
+            == "standard"
+        )
