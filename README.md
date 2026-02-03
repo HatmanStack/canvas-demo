@@ -21,11 +21,13 @@ AWS Nova Canvas Image Generation
     </a>
   </h4>
 </div>
-
+** THIS REPO IS NO LONGER MAINTAINED AND MAY NOT WORK **
+<br> 
   <p><b>From Thought - To Concept <br> <a href="https://t7bmxtdc6ojbkd3zgknxe32xdm0oqxkw.lambda-url.us-west-2.on.aws/"> Nova Canvas » </a> </b> </p>
 </div>
 
 An optimized, high-performance Gradio application for advanced image generation using AWS Nova Canvas. This refactored version provides comprehensive image manipulation capabilities with improved error handling, performance optimizations, and better monitoring.
+
 
 ## 📋 Capabilities
 
