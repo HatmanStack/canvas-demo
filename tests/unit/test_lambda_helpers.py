@@ -34,10 +34,11 @@ class TestLambdaImageHandler:
 
     def test_process_image_lambda_env(self, sample_image):
         """Test processing in Lambda environment."""
-        with patch("src.utils.lambda_helpers.config.is_lambda", True), \
-             patch("PIL.Image.Image.save") as mock_save, \
-             patch("pathlib.Path.stat") as mock_stat:
-
+        with (
+            patch("src.utils.lambda_helpers.config.is_lambda", True),
+            patch("PIL.Image.Image.save") as mock_save,
+            patch("pathlib.Path.stat") as mock_stat,
+        ):
             mock_stat.return_value.st_size = 1024
 
             result = LambdaImageHandler.process_image_for_lambda(sample_image)

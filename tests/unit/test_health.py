@@ -13,10 +13,11 @@ class TestHealthCheck:
     @pytest.fixture
     def mock_deps(self):
         """Mock external dependencies."""
-        with patch("src.handlers.health.AWSClientManager") as mock_manager, \
-             patch("src.handlers.health.rate_limiter") as mock_limiter, \
-             patch("src.handlers.health.config") as mock_config:
-
+        with (
+            patch("src.handlers.health.AWSClientManager") as mock_manager,
+            patch("src.handlers.health.rate_limiter") as mock_limiter,
+            patch("src.handlers.health.config") as mock_config,
+        ):
             # Setup config mock
             mock_config.aws_access_key_id = "test-key"
             mock_config.aws_secret_access_key = "test-secret"
@@ -38,7 +39,7 @@ class TestHealthCheck:
                 "standard_requests": 0,
                 "total_usage": 0,
                 "limit": 100,
-                "remaining": 100
+                "remaining": 100,
             }
 
             yield mock_manager, mock_limiter, mock_config
@@ -60,7 +61,9 @@ class TestHealthCheck:
         mock_instance = mock_manager.return_value
 
         # Simulate Bedrock failure
-        type(mock_instance).bedrock_client = PropertyMock(side_effect=Exception("Connection failed"))
+        type(mock_instance).bedrock_client = PropertyMock(
+            side_effect=Exception("Connection failed")
+        )
 
         health = HealthCheck()
         status = health.get_health_status()
