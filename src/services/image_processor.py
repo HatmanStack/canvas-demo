@@ -1,19 +1,22 @@
 """Image processing with async NSFW checking and efficient operations."""
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import io
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import numpy as np
-from numpy.typing import NDArray
 from PIL import Image
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 from src.models.config import config
 from src.utils.exceptions import ImageError, NSFWError, handle_gracefully
 from src.utils.logger import app_logger, log_performance
-from src.utils.validation import is_error_response
 
 
 class OptimizedImageProcessor:
@@ -56,7 +59,7 @@ class OptimizedImageProcessor:
             else:
                 return Image.open(image)
         except Exception as e:
-            raise ImageError(f"Failed to open image: {str(e)}")
+            raise ImageError(f"Failed to open image: {e!s}") from e
 
     @log_performance
     async def check_nsfw_async(
@@ -92,56 +95,42 @@ class OptimizedImageProcessor:
 
         for attempt in range(max_retries):
             try:
-                async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=timeout)
-                ) as session:
-                    async with session.post(
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session,
+                    session.post(
                         config.nsfw_api_url,
                         headers=headers,
                         data=temp_buffer.getvalue(),
-                    ) as response:
-                        if response.status == 200:
-                            json_response = await response.json()
-                            nsfw_score = next(
-                                (
-                                    item["score"]
-                                    for item in json_response
-                                    if item["label"] == "nsfw"
-                                ),
-                                0,
-                            )
+                    ) as response,
+                ):
+                    if response.status == 200:
+                        json_response = await response.json()
+                        nsfw_score = next(
+                            (item["score"] for item in json_response if item["label"] == "nsfw"),
+                            0,
+                        )
 
-                            app_logger.debug(f"NSFW Score: {nsfw_score}")
-                            return nsfw_score > 0.5
+                        app_logger.debug(f"NSFW Score: {nsfw_score}")
+                        return nsfw_score > 0.5
 
-                        elif response.status == 503:  # Service Unavailable
-                            retry_after = int(response.headers.get("Retry-After", 5))
-                            app_logger.warning(
-                                f"NSFW API unavailable, retry in {retry_after}s"
-                            )
-                            await asyncio.sleep(retry_after)
-                            continue
-                        else:
-                            app_logger.warning(
-                                f"NSFW API returned status {response.status}"
-                            )
+                    elif response.status == 503:  # Service Unavailable
+                        retry_after = int(response.headers.get("Retry-After", 5))
+                        app_logger.warning(f"NSFW API unavailable, retry in {retry_after}s")
+                        await asyncio.sleep(retry_after)
+                        continue
+                    else:
+                        app_logger.warning(f"NSFW API returned status {response.status}")
 
-            except asyncio.TimeoutError:
-                app_logger.warning(
-                    f"NSFW check timeout (attempt {attempt + 1}/{max_retries})"
-                )
+            except TimeoutError:
+                app_logger.warning(f"NSFW check timeout (attempt {attempt + 1}/{max_retries})")
             except Exception as e:
-                app_logger.warning(
-                    f"NSFW check error (attempt {attempt + 1}/{max_retries}): {str(e)}"
-                )
+                app_logger.warning(f"NSFW check error (attempt {attempt + 1}/{max_retries}): {e!s}")
 
             if attempt < max_retries - 1:
                 await asyncio.sleep(2**attempt)  # Exponential backoff
 
         # If all retries failed, continue without check
-        app_logger.warning(
-            "NSFW check failed after all retries, continuing without check"
-        )
+        app_logger.warning("NSFW check failed after all retries, continuing without check")
         return False
 
     def check_nsfw_sync(self) -> bool:
@@ -163,7 +152,7 @@ class OptimizedImageProcessor:
                 loop.close()
 
     @log_performance
-    def _convert_color_mode(self) -> "OptimizedImageProcessor":
+    def _convert_color_mode(self) -> OptimizedImageProcessor:
         """
         Optimized color mode conversion.
 
@@ -183,9 +172,7 @@ class OptimizedImageProcessor:
         return self
 
     @log_performance
-    def _resize_for_pixels(
-        self, max_pixels: int | None = None
-    ) -> "OptimizedImageProcessor":
+    def _resize_for_pixels(self, max_pixels: int | None = None) -> OptimizedImageProcessor:
         """
         Efficient pixel-based resizing.
 
@@ -211,19 +198,15 @@ class OptimizedImageProcessor:
         new_width = (new_width // 16) * 16
         new_height = (new_height // 16) * 16
 
-        app_logger.debug(
-            f"Resizing from {self.image.size} to ({new_width}, {new_height})"
-        )
-        self.image = self.image.resize(
-            (new_width, new_height), Image.Resampling.LANCZOS
-        )
+        app_logger.debug(f"Resizing from {self.image.size} to ({new_width}, {new_height})")
+        self.image = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         return self
 
     @log_performance
     def _ensure_dimensions(
         self, min_size: int | None = None, max_size: int | None = None
-    ) -> "OptimizedImageProcessor":
+    ) -> OptimizedImageProcessor:
         """
         Ensure image meets dimension requirements.
 
@@ -306,9 +289,7 @@ class OptimizedImageProcessor:
         return self.encode()
 
 
-def create_padded_image(
-    image_dict: dict[str, Any], padding_percent: int = 100
-) -> Image.Image:
+def create_padded_image(image_dict: dict[str, Any], padding_percent: int = 100) -> Image.Image:
     """
     Create padded image for outpainting.
 
@@ -380,16 +361,12 @@ def process_composite_to_mask(
 
     if composite_image is None:
         # Create mask from transparent areas
-        mask: NDArray[np.uint8] = np.full(
-            original_array.shape[:2], 0, dtype=np.uint8
-        )
+        mask: NDArray[np.uint8] = np.full(original_array.shape[:2], 0, dtype=np.uint8)
         transparent_areas = original_array[:, :, 3] == 0
         mask[transparent_areas] = 255
     else:
         # Create mask from differences between original and composite
-        composite_array: NDArray[np.uint8] = np.array(
-            composite_image.convert("RGBA")
-        )
+        composite_array: NDArray[np.uint8] = np.array(composite_image.convert("RGBA"))
         difference = np.any(original_array != composite_array, axis=2)
         mask = np.full(original_array.shape[:2], 255, dtype=np.uint8)
         mask[difference] = 0
@@ -398,9 +375,7 @@ def process_composite_to_mask(
 
 
 @handle_gracefully(default_return="Error processing image")
-def process_and_encode_image(
-    image: str | Image.Image | io.IOBase, **kwargs: Any
-) -> str:
+def process_and_encode_image(image: str | Image.Image | io.IOBase, **kwargs: Any) -> str:
     """
     Main entry point for image processing.
 
@@ -421,5 +396,5 @@ def process_and_encode_image(
         app_logger.error(f"Image processing error: {e.message}")
         return e.message
     except Exception as e:
-        app_logger.error(f"Unexpected image processing error: {str(e)}")
-        raise ImageError(f"Unexpected error during image processing: {str(e)}")
+        app_logger.error(f"Unexpected image processing error: {e!s}")
+        raise ImageError(f"Unexpected error during image processing: {e!s}") from e

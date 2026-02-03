@@ -3,16 +3,16 @@
 import pytest
 
 from src.utils.validation import (
+    DEFAULT_COLORS,
+    MIN_ENCODED_IMAGE_LENGTH,
     ValidationError,
+    is_error_response,
+    validate_cfg_scale,
+    validate_dimensions,
     validate_hex_color,
     validate_hex_colors,
-    is_error_response,
     validate_prompt,
-    validate_dimensions,
     validate_seed,
-    validate_cfg_scale,
-    MIN_ENCODED_IMAGE_LENGTH,
-    DEFAULT_COLORS,
 )
 
 

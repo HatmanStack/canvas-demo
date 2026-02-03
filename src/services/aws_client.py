@@ -13,8 +13,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from src.models.config import config
-from src.utils.logger import app_logger, log_performance
 from src.utils.exceptions import BedrockError, ConfigurationError
+from src.utils.logger import app_logger, log_performance
 
 
 class AWSClientManager:
@@ -81,8 +81,8 @@ class AWSClientManager:
                         app_logger.info("Bedrock client initialized")
                     except Exception as e:
                         raise ConfigurationError(
-                            f"Failed to initialize Bedrock client: {str(e)}"
-                        )
+                            f"Failed to initialize Bedrock client: {e!s}"
+                        ) from e
         return self._bedrock_client
 
     @property
@@ -102,9 +102,7 @@ class AWSClientManager:
                         )
                         app_logger.info("S3 client initialized")
                     except Exception as e:
-                        raise ConfigurationError(
-                            f"Failed to initialize S3 client: {str(e)}"
-                        )
+                        raise ConfigurationError(f"Failed to initialize S3 client: {e!s}") from e
         return self._s3_client
 
     @property
@@ -123,9 +121,7 @@ class AWSClientManager:
                         )
                         app_logger.info("CloudWatch Logs client initialized")
                     except Exception as e:
-                        app_logger.warning(
-                            f"Failed to initialize CloudWatch Logs client: {str(e)}"
-                        )
+                        app_logger.warning(f"Failed to initialize CloudWatch Logs client: {e!s}")
         return self._logs_client
 
     @property
@@ -159,9 +155,7 @@ class BedrockService:
             app_logger.info("Calling Bedrock invoke_model for image generation")
 
             body_bytes = (
-                request_body.encode("utf-8")
-                if isinstance(request_body, str)
-                else request_body
+                request_body.encode("utf-8") if isinstance(request_body, str) else request_body
             )
 
             response = self.client_manager.bedrock_client.invoke_model(
@@ -181,10 +175,10 @@ class BedrockService:
         except ClientError as e:
             error_msg = e.response.get("Error", {}).get("Message", str(e))
             app_logger.error(f"Bedrock client error: {error_msg}")
-            raise BedrockError(f"Image generation failed: {error_msg}")
+            raise BedrockError(f"Image generation failed: {error_msg}") from e
         except Exception as e:
-            app_logger.error(f"Unexpected error in image generation: {str(e)}")
-            raise BedrockError(f"Unexpected error: {str(e)}")
+            app_logger.error(f"Unexpected error in image generation: {e!s}")
+            raise BedrockError(f"Unexpected error: {e!s}") from e
 
     @log_performance
     def generate_prompt(self, messages: list[dict[str, Any]]) -> str:
@@ -212,10 +206,10 @@ class BedrockService:
         except ClientError as e:
             error_msg = e.response.get("Error", {}).get("Message", str(e))
             app_logger.error(f"Bedrock client error: {error_msg}")
-            raise BedrockError(f"Prompt generation failed: {error_msg}")
+            raise BedrockError(f"Prompt generation failed: {error_msg}") from e
         except Exception as e:
-            app_logger.error(f"Unexpected error in prompt generation: {str(e)}")
-            raise BedrockError(f"Unexpected error: {str(e)}")
+            app_logger.error(f"Unexpected error in prompt generation: {e!s}")
+            raise BedrockError(f"Unexpected error: {e!s}") from e
 
     def _process_image_response(self, response: dict[str, Any]) -> bytes:
         """
@@ -257,11 +251,11 @@ class BedrockService:
                 raise BedrockError("Unexpected response format")
 
         except json.JSONDecodeError as e:
-            raise BedrockError(f"Error decoding response: {str(e)}")
+            raise BedrockError(f"Error decoding response: {e!s}") from e
         except BedrockError:
             raise
         except Exception as e:
-            raise BedrockError(f"Error processing image response: {str(e)}")
+            raise BedrockError(f"Error processing image response: {e!s}") from e
 
     def _process_text_response(self, response: dict[str, Any]) -> str:
         """
@@ -292,7 +286,7 @@ class BedrockService:
         except BedrockError:
             raise
         except Exception as e:
-            raise BedrockError(f"Error processing text response: {str(e)}")
+            raise BedrockError(f"Error processing text response: {e!s}") from e
 
     def _store_response_async(self, request_body: str, image_data: bytes) -> None:
         """
@@ -343,7 +337,7 @@ class BedrockService:
 
         except Exception as e:
             # Don't fail the main operation if storage fails
-            app_logger.warning(f"Failed to store response to S3: {str(e)}")
+            app_logger.warning(f"Failed to store response to S3: {e!s}")
 
 
 # Global service instance

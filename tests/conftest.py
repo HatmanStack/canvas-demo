@@ -1,36 +1,42 @@
 """Shared test fixtures for Canvas Demo application."""
 
+import base64
 import io
 import json
-import base64
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image
 
+# Set environment variables before any imports that use config
+os.environ.setdefault("AWS_ACCESS_KEY_ID", "test-access-key")
+os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+os.environ.setdefault("AWS_REGION", "us-east-1")
+os.environ.setdefault("BUCKET_REGION", "us-west-2")
+os.environ.setdefault("NOVA_IMAGE_BUCKET", "test-bucket")
+
 
 @pytest.fixture
 def mock_config():
-    """Mock application configuration."""
-    with patch("src.models.config.config") as mock:
-        mock.rate_limit = 20
-        mock.is_lambda = False
-        mock.enable_nsfw_check = False
-        mock.aws_access_key_id = "test-access-key"
-        mock.aws_secret_access_key = "test-secret-key"
-        mock.aws_region = "us-east-1"
-        mock.bucket_region = "us-west-2"
-        mock.nova_image_bucket = "test-bucket"
-        mock.nova_canvas_model = "amazon.nova-canvas-v1:0"
-        mock.nova_lite_model = "us.amazon.nova-lite-v1:0"
-        mock.bedrock_timeout = 300
-        mock.min_image_size = 256
-        mock.max_image_size = 2048
-        mock.max_pixels = 4194304
-        mock.hf_token = ""
-        mock.nsfw_api_url = "https://example.com/nsfw"
-        mock.nsfw_timeout = 10
-        mock.nsfw_max_retries = 3
+    """Mock application configuration for tests that need custom config values."""
+    with patch.dict(
+        os.environ,
+        {
+            "AWS_ACCESS_KEY_ID": "test-access-key",
+            "AWS_SECRET_ACCESS_KEY": "test-secret-key",
+            "AWS_REGION": "us-east-1",
+            "BUCKET_REGION": "us-west-2",
+            "NOVA_IMAGE_BUCKET": "test-bucket",
+            "RATE_LIMIT": "20",
+            "IS_LAMBDA": "false",
+            "ENABLE_NSFW_CHECK": "false",
+        },
+    ):
+        # Import config after setting env vars
+        from src.models.config import AppConfig
+
+        mock = AppConfig()
         yield mock
 
 
@@ -105,43 +111,43 @@ def mock_bedrock_response(sample_image_base64):
 def mock_bedrock_text_response():
     """Sample Bedrock text generation response."""
     return {
-        "output": {
-            "message": {
-                "content": [{"text": "A beautiful sunset over mountains"}]
-            }
-        }
+        "output": {"message": {"content": [{"text": "A beautiful sunset over mountains"}]}}
     }
 
 
 @pytest.fixture
 def rate_limit_request_body():
     """Sample request body for rate limiting tests."""
-    return json.dumps({
-        "taskType": "TEXT_IMAGE",
-        "textToImageParams": {"text": "test prompt"},
-        "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "height": 1024,
-            "width": 1024,
-            "quality": "standard",
-            "cfgScale": 8.0,
-            "seed": 0,
-        },
-    })
+    return json.dumps(
+        {
+            "taskType": "TEXT_IMAGE",
+            "textToImageParams": {"text": "test prompt"},
+            "imageGenerationConfig": {
+                "numberOfImages": 1,
+                "height": 1024,
+                "width": 1024,
+                "quality": "standard",
+                "cfgScale": 8.0,
+                "seed": 0,
+            },
+        }
+    )
 
 
 @pytest.fixture
 def premium_rate_limit_request_body():
     """Sample premium request body for rate limiting tests."""
-    return json.dumps({
-        "taskType": "TEXT_IMAGE",
-        "textToImageParams": {"text": "test prompt"},
-        "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "height": 1024,
-            "width": 1024,
-            "quality": "premium",
-            "cfgScale": 8.0,
-            "seed": 0,
-        },
-    })
+    return json.dumps(
+        {
+            "taskType": "TEXT_IMAGE",
+            "textToImageParams": {"text": "test prompt"},
+            "imageGenerationConfig": {
+                "numberOfImages": 1,
+                "height": 1024,
+                "width": 1024,
+                "quality": "premium",
+                "cfgScale": 8.0,
+                "seed": 0,
+            },
+        }
+    )

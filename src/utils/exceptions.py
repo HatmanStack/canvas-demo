@@ -1,7 +1,8 @@
 """Custom exceptions for the Canvas Demo application."""
 
+from collections.abc import Callable
 from functools import wraps
-from typing import TypeVar, Callable, ParamSpec, Any
+from typing import ParamSpec, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -46,9 +47,7 @@ class ConfigurationError(CanvasError):
 class ExternalAPIError(CanvasError):
     """Exception raised for external API failures."""
 
-    def __init__(
-        self, message: str = "External API error", service: str | None = None
-    ) -> None:
+    def __init__(self, message: str = "External API error", service: str | None = None) -> None:
         self.service = service
         super().__init__(message, "EXTERNAL_API_ERROR")
 
@@ -83,7 +82,7 @@ def handle_gracefully(
                 if log_error:
                     from src.utils.logger import app_logger
 
-                    app_logger.error(f"Error in {func.__name__}: {str(e)}")
+                    app_logger.error(f"Error in {func.__name__}: {e!s}")
                 return default_return
 
         return wrapper

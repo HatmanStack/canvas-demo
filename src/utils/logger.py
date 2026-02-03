@@ -1,11 +1,13 @@
 """Optimized logging with CloudWatch integration and thread safety."""
 
+import contextlib
 import logging
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 import boto3
 
@@ -66,14 +68,10 @@ class OptimizedLogger:
             except self._cloudwatch_client.exceptions.ResourceAlreadyExistsException:
                 # Another instance/thread created it - that's fine
                 self._stream_created = True
-                self.logger.debug(
-                    f"CloudWatch log stream already exists: {self.log_stream}"
-                )
+                self.logger.debug(f"CloudWatch log stream already exists: {self.log_stream}")
             except self._cloudwatch_client.exceptions.ResourceNotFoundException:
                 # Log group doesn't exist
-                self.logger.error(
-                    f"CloudWatch log group not found: {self.log_group}"
-                )
+                self.logger.error(f"CloudWatch log group not found: {self.log_group}")
             except Exception as e:
                 self.logger.error(f"Failed to create log stream {self.log_stream}: {e}")
 
@@ -144,11 +142,8 @@ class OptimizedLogger:
 
     def __del__(self) -> None:
         """Ensure logs are flushed on cleanup."""
-        try:
+        with contextlib.suppress(Exception):
             self._flush_logs()
-        except Exception:
-            # Ignore errors during cleanup
-            pass
 
 
 # Global logger instance
@@ -179,7 +174,7 @@ def log_performance(func: Callable[P, R]) -> Callable[P, R]:
             return result
         except Exception as e:
             duration = time.time() - start_time
-            app_logger.error(f"Failed {func_name} after {duration:.2f}s: {str(e)}")
+            app_logger.error(f"Failed {func_name} after {duration:.2f}s: {e!s}")
             raise
 
     return wrapper

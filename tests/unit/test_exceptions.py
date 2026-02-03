@@ -1,15 +1,22 @@
 """Tests for custom exceptions and decorators."""
 
-import pytest
+import os
+from unittest.mock import patch
+
+# Ensure test environment vars are set before any imports
+os.environ.setdefault("AWS_ACCESS_KEY_ID", "test-access-key")
+os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+os.environ.setdefault("AWS_REGION", "us-east-1")
+os.environ.setdefault("NOVA_IMAGE_BUCKET", "test-bucket")
 
 from src.utils.exceptions import (
+    BedrockError,
     CanvasError,
+    ConfigurationError,
+    ExternalAPIError,
     ImageError,
     NSFWError,
     RateLimitError,
-    ConfigurationError,
-    ExternalAPIError,
-    BedrockError,
     handle_gracefully,
 )
 
@@ -113,7 +120,7 @@ class TestHandleGracefully:
     def test_exception_returns_default(self):
         """Test decorator returns default on exception."""
 
-        @handle_gracefully(default_return="default")
+        @handle_gracefully(default_return="default", log_error=False)
         def failing_func():
             raise ValueError("error")
 
@@ -122,7 +129,7 @@ class TestHandleGracefully:
     def test_none_default(self):
         """Test decorator with None default."""
 
-        @handle_gracefully(default_return=None)
+        @handle_gracefully(default_return=None, log_error=False)
         def failing_func():
             raise ValueError("error")
 
@@ -131,7 +138,7 @@ class TestHandleGracefully:
     def test_tuple_default(self):
         """Test decorator with tuple default."""
 
-        @handle_gracefully(default_return=(None, {"error": True}))
+        @handle_gracefully(default_return=(None, {"error": True}), log_error=False)
         def failing_func():
             raise ValueError("error")
 

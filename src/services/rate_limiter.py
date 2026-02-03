@@ -10,9 +10,9 @@ from botocore.exceptions import ClientError
 
 from src.models.config import config
 from src.services.aws_client import AWSClientManager
-from src.utils.logger import app_logger, log_performance
-from src.utils.exceptions import RateLimitError
 from src.types.common import RateLimitData, RateLimitUsage
+from src.utils.exceptions import RateLimitError
+from src.utils.logger import app_logger, log_performance
 
 
 class OptimizedRateLimiter:
@@ -60,26 +60,22 @@ class OptimizedRateLimiter:
         try:
             # Parse quality from request
             body_dict = json.loads(request_body)
-            quality = body_dict.get("imageGenerationConfig", {}).get(
-                "quality", "standard"
-            )
+            quality = body_dict.get("imageGenerationConfig", {}).get("quality", "standard")
 
             # Perform atomic check-and-increment
             allowed = self._check_and_increment_atomic(quality)
 
             if not allowed:
-                app_logger.warning(
-                    f"Rate limit exceeded for {quality} request"
-                )
+                app_logger.warning(f"Rate limit exceeded for {quality} request")
                 raise RateLimitError(self.rate_limit_message)
 
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             app_logger.error("Invalid JSON in request body for rate limiting")
-            raise RateLimitError("Invalid request format")
+            raise RateLimitError("Invalid request format") from e
         except RateLimitError:
             raise
         except Exception as e:
-            app_logger.error(f"Rate limiting error: {str(e)}")
+            app_logger.error(f"Rate limiting error: {e!s}")
             # Fail open - allow request if rate limiting system fails
             app_logger.warning("Rate limit check failed, allowing request")
 
@@ -121,15 +117,11 @@ class OptimizedRateLimiter:
                 success = self._conditional_put(rate_data, etag)
 
                 if success:
-                    app_logger.debug(
-                        f"Rate check passed: {total + cost}/{config.rate_limit}"
-                    )
+                    app_logger.debug(f"Rate check passed: {total + cost}/{config.rate_limit}")
                     return True
 
                 # If conditional PUT failed, retry
-                app_logger.debug(
-                    f"Optimistic lock conflict, retrying (attempt {attempt + 1})"
-                )
+                app_logger.debug(f"Optimistic lock conflict, retrying (attempt {attempt + 1})")
 
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
@@ -218,7 +210,7 @@ class OptimizedRateLimiter:
             return True
 
         except requests.exceptions.RequestException as e:
-            app_logger.warning(f"Conditional PUT failed: {str(e)}")
+            app_logger.warning(f"Conditional PUT failed: {e!s}")
             return False
 
     def _initialize_rate_data(self, quality: str) -> bool:
@@ -250,12 +242,10 @@ class OptimizedRateLimiter:
                 return True
 
             except Exception as e:
-                app_logger.warning(f"Failed to initialize rate data: {str(e)}")
+                app_logger.warning(f"Failed to initialize rate data: {e!s}")
                 return True  # Fail open
 
-    def _clean_old_entries(
-        self, rate_data: RateLimitData, current_time: float
-    ) -> None:
+    def _clean_old_entries(self, rate_data: RateLimitData, current_time: float) -> None:
         """
         Remove entries older than the window size.
 
@@ -265,12 +255,8 @@ class OptimizedRateLimiter:
         """
         cutoff = current_time - self.WINDOW_SIZE_SECONDS
 
-        rate_data["premium"] = [
-            t for t in rate_data.get("premium", []) if t > cutoff
-        ]
-        rate_data["standard"] = [
-            t for t in rate_data.get("standard", []) if t > cutoff
-        ]
+        rate_data["premium"] = [t for t in rate_data.get("premium", []) if t > cutoff]
+        rate_data["standard"] = [t for t in rate_data.get("standard", []) if t > cutoff]
 
     def _calculate_total(self, rate_data: RateLimitData) -> int:
         """
@@ -322,7 +308,7 @@ class OptimizedRateLimiter:
                     "limit": config.rate_limit,
                     "remaining": config.rate_limit,
                 }
-            app_logger.error(f"Failed to get current usage: {str(e)}")
+            app_logger.error(f"Failed to get current usage: {e!s}")
             return {
                 "premium_requests": 0,
                 "standard_requests": 0,
@@ -331,7 +317,7 @@ class OptimizedRateLimiter:
                 "remaining": config.rate_limit,
             }
         except Exception as e:
-            app_logger.error(f"Failed to get current usage: {str(e)}")
+            app_logger.error(f"Failed to get current usage: {e!s}")
             return {
                 "premium_requests": 0,
                 "standard_requests": 0,

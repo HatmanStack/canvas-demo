@@ -1,7 +1,7 @@
 """Input validation utilities for Canvas Demo application."""
 
-from typing import Final
 import re
+from typing import Final
 
 # Constants
 HEX_COLOR_PATTERN: Final[re.Pattern[str]] = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -46,15 +46,11 @@ def validate_hex_color(color: str) -> str:
     """
     color = color.strip()
     if not HEX_COLOR_PATTERN.match(color):
-        raise ValidationError(
-            f"Invalid hex color format: '{color}'. Expected format: #RRGGBB"
-        )
+        raise ValidationError(f"Invalid hex color format: '{color}'. Expected format: #RRGGBB")
     return color.upper()
 
 
-def validate_hex_colors(
-    colors_str: str | None, max_colors: int = MAX_COLORS
-) -> list[str]:
+def validate_hex_colors(colors_str: str | None, max_colors: int = MAX_COLORS) -> list[str]:
     """
     Validate and parse comma-separated hex colors.
 
@@ -74,9 +70,7 @@ def validate_hex_colors(
     colors = [c.strip() for c in colors_str.split(",") if c.strip()]
 
     if len(colors) > max_colors:
-        raise ValidationError(
-            f"Maximum {max_colors} colors allowed, got {len(colors)}"
-        )
+        raise ValidationError(f"Maximum {max_colors} colors allowed, got {len(colors)}")
 
     return [validate_hex_color(c) for c in colors]
 
@@ -154,9 +148,7 @@ def validate_dimensions(
         errors.append(f"Width must be between {min_size} and {max_size}, got {width}")
 
     if height < min_size or height > max_size:
-        errors.append(
-            f"Height must be between {min_size} and {max_size}, got {height}"
-        )
+        errors.append(f"Height must be between {min_size} and {max_size}, got {height}")
 
     if width % step != 0:
         errors.append(f"Width must be divisible by {step}, got {width}")
@@ -167,9 +159,7 @@ def validate_dimensions(
     # Check aspect ratio (1:4 to 4:1)
     aspect_ratio = max(width / height, height / width)
     if aspect_ratio > 4:
-        errors.append(
-            f"Aspect ratio must be between 1:4 and 4:1, got {width}:{height}"
-        )
+        errors.append(f"Aspect ratio must be between 1:4 and 4:1, got {width}:{height}")
 
     if errors:
         raise ValidationError("; ".join(errors))
@@ -197,9 +187,7 @@ def validate_seed(seed: int, min_seed: int = 0, max_seed: int = 2147483647) -> i
     return seed
 
 
-def validate_cfg_scale(
-    cfg_scale: float, min_scale: float = 1.0, max_scale: float = 20.0
-) -> float:
+def validate_cfg_scale(cfg_scale: float, min_scale: float = 1.0, max_scale: float = 20.0) -> float:
     """
     Validate CFG scale value.
 
@@ -215,7 +203,5 @@ def validate_cfg_scale(
         ValidationError: If scale is out of range
     """
     if cfg_scale < min_scale or cfg_scale > max_scale:
-        raise ValidationError(
-            f"CFG scale must be between {min_scale} and {max_scale}"
-        )
+        raise ValidationError(f"CFG scale must be between {min_scale} and {max_scale}")
     return cfg_scale

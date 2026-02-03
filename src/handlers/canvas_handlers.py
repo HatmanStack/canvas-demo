@@ -3,12 +3,12 @@
 import io
 import json
 import random
+from pathlib import Path
 from typing import Any
 
 import gradio as gr
 from PIL import Image
 
-from src.models.config import config
 from src.services.aws_client import bedrock_service
 from src.services.image_processor import (
     create_padded_image,
@@ -110,10 +110,8 @@ class CanvasHandlers:
                 return image, gr.update(value=None, visible=False)
 
             except Exception as e:
-                app_logger.error(f"Failed to process image bytes: {str(e)}")
-                return None, gr.update(
-                    visible=True, value=f"Failed to process image: {str(e)}"
-                )
+                app_logger.error(f"Failed to process image bytes: {e!s}")
+                return None, gr.update(visible=True, value=f"Failed to process image: {e!s}")
         else:
             # Error - return error message
             error_msg = str(result) if result else "Unknown error occurred"
@@ -175,10 +173,8 @@ class CanvasHandlers:
         except RateLimitError as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Text-to-image error: {str(e)}")
-            return None, gr.update(
-                visible=True, value="Image generation failed. Please try again."
-            )
+            app_logger.error(f"Text-to-image error: {e!s}")
+            return None, gr.update(visible=True, value="Image generation failed. Please try again.")
 
     @staticmethod
     @log_performance
@@ -218,15 +214,11 @@ class CanvasHandlers:
                 app_logger.debug("Using mask prompt for inpainting")
             elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
                 app_logger.debug("Processing composite mask for inpainting")
-                mask = process_composite_to_mask(
-                    mask_image["background"], mask_image["composite"]
-                )
+                mask = process_composite_to_mask(mask_image["background"], mask_image["composite"])
                 mask_image_encoded = process_and_encode_image(mask)
 
                 if not mask_image_encoded or is_error_response(mask_image_encoded):
-                    return None, gr.update(
-                        visible=True, value="Error processing mask image"
-                    )
+                    return None, gr.update(visible=True, value="Error processing mask image")
             else:
                 return None, gr.update(
                     visible=True,
@@ -255,10 +247,8 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Inpainting error: {str(e)}")
-            return None, gr.update(
-                visible=True, value="Inpainting failed. Please try again."
-            )
+            app_logger.error(f"Inpainting error: {e!s}")
+            return None, gr.update(visible=True, value="Inpainting failed. Please try again.")
 
     @staticmethod
     @log_performance
@@ -300,17 +290,13 @@ class CanvasHandlers:
             elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
                 app_logger.debug("Processing composite mask for outpainting")
                 mask = process_composite_to_mask(mask_image["background"], None)
-                image_with_alpha = process_composite_to_mask(
-                    mask_image["background"], None, True
-                )
+                image_with_alpha = process_composite_to_mask(mask_image["background"], None, True)
 
                 image_encoded = process_and_encode_image(image_with_alpha)
                 mask_image_encoded = process_and_encode_image(mask)
 
                 if not mask_image_encoded or is_error_response(mask_image_encoded):
-                    return None, gr.update(
-                        visible=True, value="Error processing mask image"
-                    )
+                    return None, gr.update(visible=True, value="Error processing mask image")
             else:
                 return None, gr.update(
                     visible=True,
@@ -341,10 +327,8 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Outpainting error: {str(e)}")
-            return None, gr.update(
-                visible=True, value="Outpainting failed. Please try again."
-            )
+            app_logger.error(f"Outpainting error: {e!s}")
+            return None, gr.update(visible=True, value="Outpainting failed. Please try again.")
 
     @staticmethod
     @log_performance
@@ -355,7 +339,7 @@ class CanvasHandlers:
                 return None
             return create_padded_image(img)
         except Exception as e:
-            app_logger.error(f"Error creating padded image: {str(e)}")
+            app_logger.error(f"Error creating padded image: {e!s}")
             return None
 
     @staticmethod
@@ -421,10 +405,8 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Image variation error: {str(e)}")
-            return None, gr.update(
-                visible=True, value="Image variation failed. Please try again."
-            )
+            app_logger.error(f"Image variation error: {e!s}")
+            return None, gr.update(visible=True, value="Image variation failed. Please try again.")
 
     @staticmethod
     @log_performance
@@ -451,14 +433,10 @@ class CanvasHandlers:
 
         try:
             if not condition_image:
-                return None, gr.update(
-                    visible=True, value="Please provide a condition image"
-                )
+                return None, gr.update(visible=True, value="Please provide a condition image")
 
             if not text or not text.strip():
-                return None, gr.update(
-                    visible=True, value="Please provide a text prompt"
-                )
+                return None, gr.update(visible=True, value="Please provide a text prompt")
 
             condition_image_encoded = process_and_encode_image(condition_image)
             if is_error_response(condition_image_encoded):
@@ -484,7 +462,7 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Image conditioning error: {str(e)}")
+            app_logger.error(f"Image conditioning error: {e!s}")
             return None, gr.update(
                 visible=True, value="Image conditioning failed. Please try again."
             )
@@ -513,9 +491,7 @@ class CanvasHandlers:
 
         try:
             if not text or not text.strip():
-                return None, gr.update(
-                    visible=True, value="Please provide a text prompt"
-                )
+                return None, gr.update(visible=True, value="Please provide a text prompt")
 
             reference_image_encoded: str | None = None
             if reference_image is not None:
@@ -557,7 +533,7 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Color-guided generation error: {str(e)}")
+            app_logger.error(f"Color-guided generation error: {e!s}")
             return None, gr.update(
                 visible=True, value="Color-guided generation failed. Please try again."
             )
@@ -576,9 +552,7 @@ class CanvasHandlers:
 
         try:
             if not image:
-                return None, gr.update(
-                    visible=True, value="Please provide an input image"
-                )
+                return None, gr.update(visible=True, value="Please provide an input image")
 
             input_image_encoded = process_and_encode_image(image)
             if is_error_response(input_image_encoded):
@@ -597,7 +571,7 @@ class CanvasHandlers:
         except (NSFWError, RateLimitError) as e:
             return None, gr.update(visible=True, value=e.message)
         except Exception as e:
-            app_logger.error(f"Background removal error: {str(e)}")
+            app_logger.error(f"Background removal error: {e!s}")
             return None, gr.update(
                 visible=True, value="Background removal failed. Please try again."
             )
@@ -610,7 +584,7 @@ class CanvasHandlers:
         app_logger.info("Starting prompt generation")
 
         try:
-            with open("seeds.json", "r") as file:
+            with Path("seeds.json").open() as file:
                 data = json.load(file)
 
             if "seeds" not in data or not isinstance(data["seeds"], list):
@@ -640,8 +614,8 @@ class CanvasHandlers:
             return result
 
         except Exception as e:
-            app_logger.error(f"Prompt generation error: {str(e)}")
-            return f"Error generating prompt: {str(e)}"
+            app_logger.error(f"Prompt generation error: {e!s}")
+            return f"Error generating prompt: {e!s}"
 
 
 # Create global handlers instance

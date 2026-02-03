@@ -1,12 +1,12 @@
 """Common type definitions for Canvas Demo application."""
 
 from typing import (
-    TypedDict,
-    Protocol,
-    TypeVar,
     Generic,
     Literal,
     NotRequired,
+    Protocol,
+    TypedDict,
+    TypeVar,
 )
 
 # Type aliases for constrained string values
@@ -199,7 +199,7 @@ class Result(Generic[T]):
     for cases where failure is expected and part of normal flow.
     """
 
-    __slots__ = ("_value", "_error")
+    __slots__ = ("_error", "_value")
 
     def __init__(self, value: T | None = None, error: str | None = None) -> None:
         self._value = value
