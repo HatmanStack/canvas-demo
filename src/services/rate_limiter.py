@@ -111,7 +111,10 @@ class OptimizedRateLimiter:
                     return False  # Rate limited
 
                 # Step 3: Add current request
-                rate_data[quality].append(current_time)
+                if quality == "premium":
+                    rate_data["premium"].append(current_time)
+                else:
+                    rate_data["standard"].append(current_time)
 
                 # Step 4: Attempt conditional PUT with ETag
                 success = self._conditional_put(rate_data, etag)
@@ -229,7 +232,10 @@ class OptimizedRateLimiter:
                     "premium": [],
                     "standard": [],
                 }
-                rate_data[quality].append(time.time())
+                if quality == "premium":
+                    rate_data["premium"].append(time.time())
+                else:
+                    rate_data["standard"].append(time.time())
 
                 self.client_manager.s3_client.put_object(
                     Bucket=config.nova_image_bucket,

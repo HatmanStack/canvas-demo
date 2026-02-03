@@ -7,14 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Skip all tests in this module if AWS credentials are not configured
-# These tests require the full application context
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("AWS_ACCESS_KEY_ID")
-    or os.environ.get("AWS_ACCESS_KEY_ID") == "test-access-key",
-    reason="Rate limiter tests require real AWS credentials or full mock setup",
-)
-
 
 class TestOptimizedRateLimiter:
     """Tests for OptimizedRateLimiter class."""

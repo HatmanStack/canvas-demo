@@ -279,7 +279,7 @@ class BedrockService:
                     and len(message_content) > 0
                     and "text" in message_content[0]
                 ):
-                    return message_content[0]["text"]
+                    return str(message_content[0]["text"])
 
             raise BedrockError("Unexpected converse response format")
 
