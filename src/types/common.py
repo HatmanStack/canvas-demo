@@ -220,7 +220,7 @@ class Result(Generic[T]):
         """Get the success value. Raises ValueError if result is an error."""
         if self._error is not None:
             raise ValueError(f"Result is an error: {self._error}")
-        return self._value 
+        return self._value
 
     @property
     def error(self) -> str | None:
@@ -231,7 +231,7 @@ class Result(Generic[T]):
         """Get the value or return default if error."""
         if self._error is not None:
             return default
-        return self._value 
+        return self._value
 
     @classmethod
     def ok(cls, value: T) -> "Result[T]":

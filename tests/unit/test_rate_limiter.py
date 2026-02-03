@@ -1,7 +1,6 @@
 """Tests for rate limiter with optimistic locking."""
 
 import json
-import os
 import time
 from unittest.mock import MagicMock, patch
 
