@@ -6,7 +6,6 @@ from typing import Any
 from src.models.config import config
 from src.services.aws_client import AWSClientManager
 from src.services.rate_limiter import rate_limiter
-from src.utils.exceptions import handle_gracefully
 from src.utils.logger import app_logger
 
 
@@ -30,59 +29,63 @@ class HealthCheck:
         with self._counter_lock:
             self.error_count += 1
 
-    @handle_gracefully(default_return={"status": "error", "message": "Health check failed"})
     def get_health_status(self) -> dict[str, Any]:
         """Get comprehensive health status"""
-        current_time = time.time()
-        uptime_seconds = current_time - self.start_time
+        try:
+            current_time = time.time()
+            uptime_seconds = current_time - self.start_time
 
-        # Basic health info
-        health_info = {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "uptime_seconds": round(uptime_seconds, 2),
-            "uptime_human": self._format_uptime(uptime_seconds),
-            "environment": "lambda" if config.is_lambda else "local",
-            "version": "2.0.0-optimized",
-        }
+            # Basic health info
+            health_info = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "uptime_seconds": round(uptime_seconds, 2),
+                "uptime_human": self._format_uptime(uptime_seconds),
+                "environment": "lambda" if config.is_lambda else "local",
+                "version": "2.0.0-optimized",
+            }
 
-        # Service checks
-        services = self._check_services()
-        health_info["services"] = services
+            # Service checks
+            services = self._check_services()
+            health_info["services"] = services
 
-        # Performance metrics
-        metrics = self._get_metrics()
-        health_info["metrics"] = metrics
+            # Performance metrics
+            metrics = self._get_metrics()
+            health_info["metrics"] = metrics
 
-        # Rate limiting status
-        rate_status = rate_limiter.get_current_usage()
-        health_info["rate_limiting"] = rate_status
+            # Rate limiting status
+            rate_status = rate_limiter.get_current_usage()
+            health_info["rate_limiting"] = rate_status
 
-        # Overall health determination
-        if any(service["status"] != "healthy" for service in services.values()):
-            health_info["status"] = "degraded"
+            # Overall health determination
+            if any(service["status"] != "healthy" for service in services.values()):
+                health_info["status"] = "degraded"
 
-        if self.error_count / max(self.request_count, 1) > 0.1:  # 10% error rate
-            health_info["status"] = "unhealthy"
+            if self.error_count / max(self.request_count, 1) > 0.1:  # 10% error rate
+                health_info["status"] = "unhealthy"
 
-        return health_info
+            return health_info
+        except Exception:
+            app_logger.logger.exception("Health check failed")
+            return {"status": "error", "message": "Health check failed"}
 
     def _check_services(self) -> dict[str, dict[str, Any]]:
-        """Check status of dependent services"""
-        services = {}
+        """Check status of dependent services, using parallel I/O when possible."""
+        executor = self.client_manager.executor
+        if executor:
+            bedrock_future = executor.submit(self._check_bedrock)
+            s3_future = executor.submit(self._check_s3)
+            return {
+                "bedrock": bedrock_future.result(timeout=10),
+                "s3": s3_future.result(timeout=10),
+                "configuration": self._check_configuration(),
+            }
+        return {
+            "bedrock": self._check_bedrock(),
+            "s3": self._check_s3(),
+            "configuration": self._check_configuration(),
+        }
 
-        # Check Bedrock connectivity
-        services["bedrock"] = self._check_bedrock()
-
-        # Check S3 connectivity
-        services["s3"] = self._check_s3()
-
-        # Check configuration
-        services["configuration"] = self._check_configuration()
-
-        return services
-
-    @handle_gracefully(default_return={"status": "error", "message": "Connection check failed"})
     def _check_bedrock(self) -> dict[str, Any]:
         """Check Bedrock service connectivity"""
         try:
@@ -97,7 +100,6 @@ class HealthCheck:
             app_logger.error(f"Bedrock health check failed: {e!s}")
             return {"status": "unhealthy", "message": f"Bedrock connection failed: {e!s}"}
 
-    @handle_gracefully(default_return={"status": "error", "message": "Connection check failed"})
     def _check_s3(self) -> dict[str, Any]:
         """Check S3 service connectivity"""
         try:
@@ -153,7 +155,6 @@ class HealthCheck:
             "memory_info": self._get_memory_info(),
         }
 
-    @handle_gracefully(default_return={"status": "unavailable"})
     def _get_memory_info(self) -> dict[str, Any]:
         """Get memory usage information"""
         try:

@@ -51,11 +51,13 @@ class AppConfig:
 
     def __post_init__(self):
         """Validate configuration after initialization"""
+        from src.utils.exceptions import ConfigurationError
+
         if not self.aws_access_key_id or not self.aws_secret_access_key:
-            raise ValueError("AWS credentials are required")
+            raise ConfigurationError("AWS credentials are required")
 
         if not self.nova_image_bucket:
-            raise ValueError("NOVA_IMAGE_BUCKET is required")
+            raise ConfigurationError("NOVA_IMAGE_BUCKET is required")
 
         if self.enable_nsfw_check and not self.hf_token:
             logging.warning(

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import gradio as gr
 import os
 from src.models.config import config
@@ -56,59 +58,13 @@ def create_advanced_options():
 # Gradio Interface with optimized structure
 app_logger.info("Setting up Gradio interface")
 
-error_interceptor_script = """
-<script>
-// Store the original console.error function so we can still use it
-const originalConsoleError = console.error;
+_static = Path(__file__).parent / "static"
+_error_js = (_static / "error_interceptor.js").read_text()
+_app_css = (_static / "app.css").read_text()
 
-// Create a flag to ensure the reload only happens once
-let hasReloaded = false;
+error_interceptor_script = f"<script>{_error_js}</script>"
 
-// Override the default console.error function
-console.error = function(...args) {
-    // 1. Pass the error to the original function to maintain normal browser behavior.
-    originalConsoleError.apply(console, args);
-
-    // 2. Check if the error message contains our target phrase.
-    // We combine all arguments passed to console.error into a single string.
-    const errorMessage = args.join(' ').toLowerCase();
-    
-    if (!hasReloaded && errorMessage.includes('connection errored out')) {
-        
-        // 3. If it's our target error and we haven't reloaded yet, set the flag and reload.
-        hasReloaded = true;
-        console.log('Gradio "Connection errored out" detected. Forcing refresh.');
-        
-        // Use a tiny delay to ensure the error log completes before the page reloads.
-        setTimeout(() => {
-            location.reload();
-        }, 100);
-    }
-};
-</script>
-"""
-
-with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script) as demo:
-    # Custom CSS for better UI
-    gr.HTML("""
-    <style>
-        ::-webkit-scrollbar { display: none; }
-        #component-0 { max-width: 800px; margin: 0 auto; }
-        .center-markdown { 
-            text-align: center !important; 
-            display: flex !important; 
-            justify-content: center !important; 
-            width: 100% !important; 
-        }
-        .error-message { 
-            color: #ff4444; 
-            background-color: #fff3f3; 
-            padding: 10px; 
-            border-radius: 5px; 
-            border-left: 4px solid #ff4444; 
-        }
-    </style>
-    """)
+with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_css) as demo:
     
     gr.Markdown("""
         <h1>AWS Nova Canvas Image Generation</h1>

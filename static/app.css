@@ -1,0 +1,15 @@
+::-webkit-scrollbar { display: none; }
+#component-0 { max-width: 800px; margin: 0 auto; }
+.center-markdown {
+    text-align: center !important;
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+.error-message {
+    color: #ff4444;
+    background-color: #fff3f3;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #ff4444;
+}

@@ -1,8 +1,11 @@
-"""Handlers for all Canvas operations with improved error handling."""
+"""Handlers for all Canvas operations with error-boundary pattern."""
 
 import io
 import json
 import random
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -32,12 +35,43 @@ from src.utils.logger import app_logger, log_performance
 from src.utils.validation import (
     DEFAULT_COLORS,
     ValidationError,
+    validate_cfg_scale,
+    validate_dimensions,
     validate_hex_colors,
+    validate_prompt,
+    validate_seed,
 )
 
 # Type aliases for Gradio return types
 GradioImageResult = tuple[Image.Image | None, dict[str, Any]]
 GradioTextResult = str
+
+
+def gradio_handler(operation: str) -> Callable[..., Any]:
+    """Error boundary that maps exceptions to Gradio UI responses.
+
+    Unlike the deleted handle_gracefully, this decorator:
+    - Maps specific exception types to user-friendly error tuples
+    - Logs unknown exceptions with full context before returning generic messages
+    - Never silently swallows — always returns structured (None, gr.update(...))
+    """
+
+    def decorator(func: Callable[..., GradioImageResult]) -> Callable[..., GradioImageResult]:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> GradioImageResult:
+            try:
+                return func(*args, **kwargs)
+            except (ImageError, NSFWError, RateLimitError) as e:
+                return None, gr.update(visible=True, value=e.message)
+            except ValidationError as e:
+                return None, gr.update(visible=True, value=str(e))
+            except Exception as e:
+                app_logger.error(f"{operation} error: {e!s}")
+                return None, gr.update(visible=True, value=f"{operation} failed. Please try again.")
+
+        return wrapper
+
+    return decorator
 
 
 class CanvasHandlers:
@@ -82,26 +116,32 @@ class CanvasHandlers:
 
         return json.dumps(request_body)
 
-    def _process_response(self, result: Any) -> GradioImageResult:
-        """Process response and return appropriate Gradio outputs."""
-        app_logger.debug(f"Processing response type: {type(result)}")
+    def _process_response(self, result: bytes) -> GradioImageResult:
+        """Process Bedrock image bytes and return appropriate Gradio outputs."""
+        app_logger.info(f"Processing image bytes: {len(result)} bytes")
 
-        if isinstance(result, bytes):
-            app_logger.info(f"Processing image bytes: {len(result)} bytes")
+        try:
+            image = Image.open(io.BytesIO(result))
+            app_logger.info(f"Created PIL Image: {image.size}, mode: {image.mode}")
+            return image, gr.update(value=None, visible=False)
+        except Exception as e:
+            app_logger.error(f"Failed to process image bytes: {e!s}")
+            return None, gr.update(visible=True, value=f"Failed to process image: {e!s}")
 
-            try:
-                image = Image.open(io.BytesIO(result))
-                app_logger.info(f"Created PIL Image: {image.size}, mode: {image.mode}")
-                return image, gr.update(value=None, visible=False)
-            except Exception as e:
-                app_logger.error(f"Failed to process image bytes: {e!s}")
-                return None, gr.update(visible=True, value=f"Failed to process image: {e!s}")
-        else:
-            error_msg = str(result) if result else "Unknown error occurred"
-            app_logger.error(f"Operation failed: {error_msg}")
-            return None, gr.update(visible=True, value=error_msg)
+    def _validate_generation_params(
+        self,
+        height: int,
+        width: int,
+        cfg_scale: float,
+        seed: int,
+    ) -> None:
+        """Validate common numeric generation parameters."""
+        validate_dimensions(width, height)
+        validate_seed(seed)
+        validate_cfg_scale(cfg_scale)
 
     @log_performance
+    @gradio_handler("Text-to-image")
     def text_to_image(
         self,
         prompt: str,
@@ -115,31 +155,25 @@ class CanvasHandlers:
         """Generate image from text prompt."""
         app_logger.info("Starting text-to-image generation")
 
-        if not prompt or not prompt.strip():
-            return None, gr.update(visible=True, value="Please provide a text prompt")
+        prompt = validate_prompt(prompt)
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-        try:
-            text_to_image_params: dict[str, Any] = {
-                "text": prompt.strip(),
-            }
-            if negative_text and negative_text.strip():
-                text_to_image_params["negativeText"] = negative_text.strip()
+        text_to_image_params: dict[str, Any] = {
+            "text": prompt,
+        }
+        if negative_text and negative_text.strip():
+            text_to_image_params["negativeText"] = negative_text.strip()
 
-            body = self._build_request(
-                "TEXT_IMAGE", text_to_image_params, height, width, quality, cfg_scale, seed
-            )
+        body = self._build_request(
+            "TEXT_IMAGE", text_to_image_params, height, width, quality, cfg_scale, seed
+        )
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
-
-        except RateLimitError as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Text-to-image error: {e!s}")
-            return None, gr.update(visible=True, value="Image generation failed. Please try again.")
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
+    @gradio_handler("Inpainting")
     def inpainting(
         self,
         mask_image: GradioImageMask | None,
@@ -155,51 +189,47 @@ class CanvasHandlers:
         """Perform inpainting on masked areas."""
         app_logger.info("Starting inpainting operation")
 
-        try:
-            if not mask_image or "background" not in mask_image:
-                return None, gr.update(visible=True, value="Please provide a base image")
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-            image_encoded = process_and_encode_image(mask_image["background"])
+        if not mask_image or "background" not in mask_image:
+            return None, gr.update(visible=True, value="Please provide a base image")
 
-            mask_image_encoded: str | None = None
+        image_encoded = process_and_encode_image(mask_image["background"])
 
-            if mask_prompt and mask_prompt.strip():
-                app_logger.debug("Using mask prompt for inpainting")
-            elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
-                app_logger.debug("Processing composite mask for inpainting")
-                mask = process_composite_to_mask(mask_image["background"], mask_image["composite"])
-                mask_image_encoded = process_and_encode_image(mask)
-            else:
-                return None, gr.update(
-                    visible=True,
-                    value="Please provide either a mask prompt or draw a mask on the image",
-                )
+        mask_image_encoded: str | None = None
 
-            in_painting_params: dict[str, Any] = {"image": image_encoded}
-            if mask_image_encoded:
-                in_painting_params["maskImage"] = mask_image_encoded
-            if mask_prompt and mask_prompt.strip():
-                in_painting_params["maskPrompt"] = mask_prompt.strip()
-            if text and text.strip():
-                in_painting_params["text"] = text.strip()
-            if negative_text and negative_text.strip():
-                in_painting_params["negativeText"] = negative_text.strip()
-
-            body = self._build_request(
-                "INPAINTING", in_painting_params, height, width, quality, cfg_scale, seed
+        if mask_prompt and mask_prompt.strip():
+            app_logger.debug("Using mask prompt for inpainting")
+        elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
+            app_logger.debug("Processing composite mask for inpainting")
+            mask = process_composite_to_mask(mask_image["background"], mask_image["composite"])
+            mask_image_encoded = process_and_encode_image(mask)
+        else:
+            return None, gr.update(
+                visible=True,
+                value="Please provide either a mask prompt or draw a mask on the image",
             )
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
+        in_painting_params: dict[str, Any] = {"image": image_encoded}
+        if mask_image_encoded:
+            in_painting_params["maskImage"] = mask_image_encoded
+        if mask_prompt and mask_prompt.strip():
+            in_painting_params["maskPrompt"] = mask_prompt.strip()
+        if text and text.strip():
+            in_painting_params["text"] = text.strip()
+        if negative_text and negative_text.strip():
+            in_painting_params["negativeText"] = negative_text.strip()
 
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Inpainting error: {e!s}")
-            return None, gr.update(visible=True, value="Inpainting failed. Please try again.")
+        body = self._build_request(
+            "INPAINTING", in_painting_params, height, width, quality, cfg_scale, seed
+        )
+
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
+    @gradio_handler("Outpainting")
     def outpainting(
         self,
         mask_image: GradioImageMask | None,
@@ -216,54 +246,49 @@ class CanvasHandlers:
         """Perform outpainting to extend image boundaries."""
         app_logger.info("Starting outpainting operation")
 
-        try:
-            if not mask_image or "background" not in mask_image:
-                return None, gr.update(visible=True, value="Please provide a base image")
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-            image_encoded = process_and_encode_image(mask_image["background"])
+        if not mask_image or "background" not in mask_image:
+            return None, gr.update(visible=True, value="Please provide a base image")
 
-            mask_image_encoded: str | None = None
+        image_encoded = process_and_encode_image(mask_image["background"])
 
-            if mask_prompt and mask_prompt.strip():
-                app_logger.debug("Using mask prompt for outpainting")
-            elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
-                app_logger.debug("Processing composite mask for outpainting")
-                mask = process_composite_to_mask(mask_image["background"], None)
-                image_with_alpha = process_composite_to_mask(mask_image["background"], None, True)
+        mask_image_encoded: str | None = None
 
-                image_encoded = process_and_encode_image(image_with_alpha)
-                mask_image_encoded = process_and_encode_image(mask)
-            else:
-                return None, gr.update(
-                    visible=True,
-                    value="Please provide either a mask prompt or draw a mask on the image",
-                )
+        if mask_prompt and mask_prompt.strip():
+            app_logger.debug("Using mask prompt for outpainting")
+        elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
+            app_logger.debug("Processing composite mask for outpainting")
+            mask = process_composite_to_mask(mask_image["background"], None)
+            image_with_alpha = process_composite_to_mask(mask_image["background"], None, True)
 
-            out_painting_params: dict[str, Any] = {
-                "image": image_encoded,
-                "outPaintingMode": outpainting_mode,
-            }
-            if mask_image_encoded:
-                out_painting_params["maskImage"] = mask_image_encoded
-            if mask_prompt and mask_prompt.strip():
-                out_painting_params["maskPrompt"] = mask_prompt.strip()
-            out_painting_params["text"] = text.strip() if text and text.strip() else " "
-            if negative_text and negative_text.strip():
-                out_painting_params["negativeText"] = negative_text.strip()
-
-            body = self._build_request(
-                "OUTPAINTING", out_painting_params, height, width, quality, cfg_scale, seed
+            image_encoded = process_and_encode_image(image_with_alpha)
+            mask_image_encoded = process_and_encode_image(mask)
+        else:
+            return None, gr.update(
+                visible=True,
+                value="Please provide either a mask prompt or draw a mask on the image",
             )
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
+        out_painting_params: dict[str, Any] = {
+            "image": image_encoded,
+            "outPaintingMode": outpainting_mode,
+        }
+        if mask_image_encoded:
+            out_painting_params["maskImage"] = mask_image_encoded
+        if mask_prompt and mask_prompt.strip():
+            out_painting_params["maskPrompt"] = mask_prompt.strip()
+        out_painting_params["text"] = text.strip() if text and text.strip() else " "
+        if negative_text and negative_text.strip():
+            out_painting_params["negativeText"] = negative_text.strip()
 
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Outpainting error: {e!s}")
-            return None, gr.update(visible=True, value="Outpainting failed. Please try again.")
+        body = self._build_request(
+            "OUTPAINTING", out_painting_params, height, width, quality, cfg_scale, seed
+        )
+
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
     def update_mask_editor(self, img: dict[str, Any]) -> Image.Image | None:
@@ -277,6 +302,7 @@ class CanvasHandlers:
             return None
 
     @log_performance
+    @gradio_handler("Image variation")
     def image_variation(
         self,
         images: list[str],
@@ -292,46 +318,38 @@ class CanvasHandlers:
         """Generate image variations."""
         app_logger.info("Starting image variation generation")
 
-        try:
-            if not images:
-                return None, gr.update(
-                    visible=True, value="Please provide at least one input image"
-                )
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-            encoded_images: list[str] = []
-            for image_path in images:
-                encoded_image = process_and_encode_image(image_path)
-                encoded_images.append(encoded_image)
+        if not images:
+            return None, gr.update(visible=True, value="Please provide at least one input image")
 
-            image_variation_params: dict[str, Any] = {"images": encoded_images}
-            if similarity_strength is not None:
-                image_variation_params["similarityStrength"] = similarity_strength
-            if text and text.strip():
-                image_variation_params["text"] = text.strip()
-            if negative_text and negative_text.strip():
-                image_variation_params["negativeText"] = negative_text.strip()
+        with ThreadPoolExecutor(max_workers=min(len(images), 5)) as pool:
+            encoded_images = list(pool.map(process_and_encode_image, images))
 
-            body = self._build_request(
-                "IMAGE_VARIATION",
-                image_variation_params,
-                height,
-                width,
-                quality,
-                cfg_scale,
-                seed,
-            )
+        image_variation_params: dict[str, Any] = {"images": encoded_images}
+        if similarity_strength is not None:
+            image_variation_params["similarityStrength"] = similarity_strength
+        if text and text.strip():
+            image_variation_params["text"] = text.strip()
+        if negative_text and negative_text.strip():
+            image_variation_params["negativeText"] = negative_text.strip()
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
+        body = self._build_request(
+            "IMAGE_VARIATION",
+            image_variation_params,
+            height,
+            width,
+            quality,
+            cfg_scale,
+            seed,
+        )
 
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Image variation error: {e!s}")
-            return None, gr.update(visible=True, value="Image variation failed. Please try again.")
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
+    @gradio_handler("Image conditioning")
     def image_conditioning(
         self,
         condition_image: Image.Image,
@@ -348,41 +366,33 @@ class CanvasHandlers:
         """Generate image with conditioning."""
         app_logger.info("Starting image conditioning generation")
 
-        try:
-            if not condition_image:
-                return None, gr.update(visible=True, value="Please provide a condition image")
+        if not condition_image:
+            return None, gr.update(visible=True, value="Please provide a condition image")
 
-            if not text or not text.strip():
-                return None, gr.update(visible=True, value="Please provide a text prompt")
+        text = validate_prompt(text)
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-            condition_image_encoded = process_and_encode_image(condition_image)
+        condition_image_encoded = process_and_encode_image(condition_image)
 
-            text_to_image_params: dict[str, Any] = {
-                "text": text.strip(),
-                "controlMode": control_mode,
-                "controlStrength": control_strength,
-                "conditionImage": condition_image_encoded,
-            }
-            if negative_text and negative_text.strip():
-                text_to_image_params["negativeText"] = negative_text.strip()
+        text_to_image_params: dict[str, Any] = {
+            "text": text,
+            "controlMode": control_mode,
+            "controlStrength": control_strength,
+            "conditionImage": condition_image_encoded,
+        }
+        if negative_text and negative_text.strip():
+            text_to_image_params["negativeText"] = negative_text.strip()
 
-            body = self._build_request(
-                "TEXT_IMAGE", text_to_image_params, height, width, quality, cfg_scale, seed
-            )
+        body = self._build_request(
+            "TEXT_IMAGE", text_to_image_params, height, width, quality, cfg_scale, seed
+        )
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
-
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Image conditioning error: {e!s}")
-            return None, gr.update(
-                visible=True, value="Image conditioning failed. Please try again."
-            )
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
+    @gradio_handler("Color-guided generation")
     def color_guided_content(
         self,
         text: str,
@@ -398,80 +408,60 @@ class CanvasHandlers:
         """Generate color-guided content."""
         app_logger.info("Starting color-guided generation")
 
-        try:
-            if not text or not text.strip():
-                return None, gr.update(visible=True, value="Please provide a text prompt")
+        text = validate_prompt(text)
+        self._validate_generation_params(height, width, cfg_scale, seed)
 
-            reference_image_encoded: str | None = None
-            if reference_image is not None:
-                reference_image_encoded = process_and_encode_image(reference_image)
+        reference_image_encoded: str | None = None
+        if reference_image is not None:
+            reference_image_encoded = process_and_encode_image(reference_image)
 
-            try:
-                validated_colors = validate_hex_colors(colors) if colors else []
-                if not validated_colors:
-                    validated_colors = DEFAULT_COLORS
-            except ValidationError as e:
-                return None, gr.update(visible=True, value=str(e))
+        validated_colors = validate_hex_colors(colors) if colors else []
+        if not validated_colors:
+            validated_colors = DEFAULT_COLORS
 
-            color_guided_params: dict[str, Any] = {
-                "text": text.strip(),
-                "colors": validated_colors,
-            }
-            if reference_image_encoded:
-                color_guided_params["referenceImage"] = reference_image_encoded
-            if negative_text and negative_text.strip():
-                color_guided_params["negativeText"] = negative_text.strip()
+        color_guided_params: dict[str, Any] = {
+            "text": text,
+            "colors": validated_colors,
+        }
+        if reference_image_encoded:
+            color_guided_params["referenceImage"] = reference_image_encoded
+        if negative_text and negative_text.strip():
+            color_guided_params["negativeText"] = negative_text.strip()
 
-            body = self._build_request(
-                "COLOR_GUIDED_GENERATION",
-                color_guided_params,
-                height,
-                width,
-                quality,
-                cfg_scale,
-                seed,
-            )
+        body = self._build_request(
+            "COLOR_GUIDED_GENERATION",
+            color_guided_params,
+            height,
+            width,
+            quality,
+            cfg_scale,
+            seed,
+        )
 
-            self.limiter.check_rate_limit(body)
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
-
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Color-guided generation error: {e!s}")
-            return None, gr.update(
-                visible=True, value="Color-guided generation failed. Please try again."
-            )
+        self.limiter.check_rate_limit(body)
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
+    @gradio_handler("Background removal")
     def background_removal(self, image: Image.Image) -> GradioImageResult:
         """Remove background from image."""
         app_logger.info("Starting background removal")
 
-        try:
-            if not image:
-                return None, gr.update(visible=True, value="Please provide an input image")
+        if not image:
+            return None, gr.update(visible=True, value="Please provide an input image")
 
-            input_image_encoded = process_and_encode_image(image)
+        input_image_encoded = process_and_encode_image(image)
 
-            body = json.dumps(
-                {
-                    "taskType": "BACKGROUND_REMOVAL",
-                    "backgroundRemovalParams": {"image": input_image_encoded},
-                }
-            )
+        body = json.dumps(
+            {
+                "taskType": "BACKGROUND_REMOVAL",
+                "backgroundRemovalParams": {"image": input_image_encoded},
+            }
+        )
 
-            result = self.bedrock.generate_image(body)
-            return self._process_response(result)
-
-        except (ImageError, NSFWError, RateLimitError) as e:
-            return None, gr.update(visible=True, value=e.message)
-        except Exception as e:
-            app_logger.error(f"Background removal error: {e!s}")
-            return None, gr.update(
-                visible=True, value="Background removal failed. Please try again."
-            )
+        result = self.bedrock.generate_image(body)
+        return self._process_response(result)
 
     @log_performance
     def generate_nova_prompt(self) -> GradioTextResult:

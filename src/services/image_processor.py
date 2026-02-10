@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import io
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +18,29 @@ if TYPE_CHECKING:
 from src.models.config import config
 from src.utils.exceptions import ImageError, NSFWError
 from src.utils.logger import app_logger, log_performance
+
+
+class _NSFWCache:
+    """Content-addressable cache for NSFW check results.
+
+    Avoids redundant HuggingFace API calls for previously-checked images.
+    Uses SHA-256 of raw pixel data as cache key with FIFO eviction.
+    """
+
+    def __init__(self, max_size: int = 128) -> None:
+        self._cache: dict[str, bool] = {}
+        self._max_size = max_size
+
+    def get(self, image: Image.Image) -> bool | None:
+        return self._cache.get(hashlib.sha256(image.tobytes()).hexdigest())
+
+    def put(self, image: Image.Image, is_nsfw: bool) -> None:
+        if len(self._cache) >= self._max_size:
+            del self._cache[next(iter(self._cache))]
+        self._cache[hashlib.sha256(image.tobytes()).hexdigest()] = is_nsfw
+
+
+_nsfw_cache = _NSFWCache()
 
 
 class OptimizedImageProcessor:
@@ -280,11 +304,16 @@ class OptimizedImageProcessor:
         self._resize_for_pixels(kwargs.get("max_pixels"))
         self._ensure_dimensions(kwargs.get("min_size"), kwargs.get("max_size"))
 
-        # NSFW check if enabled
+        # NSFW check if enabled, with content-addressable caching
         if check_nsfw and config.enable_nsfw_check:
-            is_nsfw = self.check_nsfw_sync()
-            if is_nsfw:
+            cached = _nsfw_cache.get(self.image)
+            if cached is True:
                 raise NSFWError("Image flagged as inappropriate")
+            if cached is None:
+                is_nsfw = self.check_nsfw_sync()
+                _nsfw_cache.put(self.image, is_nsfw)
+                if is_nsfw:
+                    raise NSFWError("Image flagged as inappropriate")
 
         return self.encode()
 

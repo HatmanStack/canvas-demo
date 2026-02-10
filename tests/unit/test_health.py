@@ -32,6 +32,7 @@ class TestHealthCheck:
             mock_manager.return_value = mock_instance
             mock_instance.bedrock_client = MagicMock()
             mock_instance.s3_client.head_bucket.return_value = {}
+            mock_instance.executor = None  # No executor by default
 
             # Setup rate limiter mock
             mock_limiter.get_current_usage.return_value = {
@@ -89,3 +90,36 @@ class TestHealthCheck:
 
         assert status["status"] == "healthy"
         assert "timestamp" in status
+
+    def test_health_check_exception_returns_error(self, mock_deps):
+        """Test that exceptions in get_health_status return error dict."""
+        _, mock_limiter, _ = mock_deps
+        mock_limiter.get_current_usage.side_effect = RuntimeError("Unexpected")
+
+        health = HealthCheck()
+        status = health.get_health_status()
+
+        assert status["status"] == "error"
+        assert "Health check failed" in status["message"]
+
+    def test_parallel_service_checks(self, mock_deps):
+        """Test that service checks use executor when available."""
+        mock_manager, _, _ = mock_deps
+        mock_instance = mock_manager.return_value
+
+        # Provide an executor
+        mock_executor = MagicMock()
+        mock_instance.executor = mock_executor
+
+        # Mock the futures
+        bedrock_future = MagicMock()
+        bedrock_future.result.return_value = {"status": "healthy", "message": "OK"}
+        s3_future = MagicMock()
+        s3_future.result.return_value = {"status": "healthy", "message": "OK"}
+        mock_executor.submit.side_effect = [bedrock_future, s3_future]
+
+        health = HealthCheck()
+        status = health.get_health_status()
+
+        assert status["status"] == "healthy"
+        assert mock_executor.submit.call_count == 2

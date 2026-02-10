@@ -178,6 +178,17 @@ class OptimizedRateLimiter:
         standard_count = len(rate_data.get("standard", []))
         return premium_count * 2 + standard_count
 
+    @classmethod
+    def _empty_usage(cls) -> RateLimitUsage:
+        """Return a zero-value usage dict for fallback responses."""
+        return {
+            "premium_requests": 0,
+            "standard_requests": 0,
+            "total_usage": 0,
+            "limit": config.rate_limit,
+            "remaining": config.rate_limit,
+        }
+
     def get_current_usage(self) -> RateLimitUsage:
         """Get current rate limit usage for monitoring."""
         try:
@@ -199,30 +210,12 @@ class OptimizedRateLimiter:
 
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "NoSuchKey":
-                return {
-                    "premium_requests": 0,
-                    "standard_requests": 0,
-                    "total_usage": 0,
-                    "limit": config.rate_limit,
-                    "remaining": config.rate_limit,
-                }
+                return self._empty_usage()
             app_logger.error(f"Failed to get current usage: {e!s}")
-            return {
-                "premium_requests": 0,
-                "standard_requests": 0,
-                "total_usage": 0,
-                "limit": config.rate_limit,
-                "remaining": config.rate_limit,
-            }
+            return self._empty_usage()
         except Exception as e:
             app_logger.error(f"Failed to get current usage: {e!s}")
-            return {
-                "premium_requests": 0,
-                "standard_requests": 0,
-                "total_usage": 0,
-                "limit": config.rate_limit,
-                "remaining": config.rate_limit,
-            }
+            return self._empty_usage()
 
 
 # Global rate limiter instance

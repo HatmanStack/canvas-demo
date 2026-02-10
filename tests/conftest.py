@@ -52,7 +52,6 @@ def mock_s3_client():
     """Mock S3 client with common operations."""
     mock = MagicMock()
     mock.get_object.return_value = {
-        "ETag": '"abc123"',
         "Body": MagicMock(read=lambda: json.dumps({"premium": [], "standard": []}).encode()),
     }
     mock.put_object.return_value = {}

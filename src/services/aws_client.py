@@ -6,7 +6,7 @@ import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
 
 import boto3
 from botocore.config import Config
@@ -18,6 +18,11 @@ from src.utils.logger import app_logger, log_performance
 
 if TYPE_CHECKING:
     from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
+    from mypy_boto3_bedrock_runtime.type_defs import (
+        ConverseResponseTypeDef,
+        InvokeModelResponseTypeDef,
+        MessageTypeDef,
+    )
     from mypy_boto3_logs import CloudWatchLogsClient
     from mypy_boto3_s3 import S3Client
 
@@ -203,7 +208,8 @@ class BedrockService:
             app_logger.info("Calling Bedrock converse for prompt generation")
 
             response = self.client_manager.bedrock_client.converse(
-                modelId=config.nova_lite_model, messages=messages
+                modelId=config.nova_lite_model,
+                messages=cast("list[MessageTypeDef]", messages),
             )
 
             return self._process_text_response(response)
@@ -216,7 +222,7 @@ class BedrockService:
             app_logger.error(f"Unexpected error in prompt generation: {e!s}")
             raise BedrockError(f"Unexpected error: {e!s}") from e
 
-    def _process_image_response(self, response: dict[str, Any]) -> bytes:
+    def _process_image_response(self, response: "InvokeModelResponseTypeDef") -> bytes:
         """
         Process Bedrock image response.
 
@@ -262,7 +268,7 @@ class BedrockService:
         except Exception as e:
             raise BedrockError(f"Error processing image response: {e!s}") from e
 
-    def _process_text_response(self, response: dict[str, Any]) -> str:
+    def _process_text_response(self, response: "ConverseResponseTypeDef") -> str:
         """
         Process Bedrock text response.
 
