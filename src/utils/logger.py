@@ -9,8 +9,6 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-import boto3
-
 from src.models.config import config
 
 P = ParamSpec("P")
@@ -24,16 +22,11 @@ class OptimizedLogger:
     _batch_lock: threading.Lock = threading.Lock()
 
     def __init__(self, log_group: str = "/aws/lambda/canvas-demo") -> None:
-        """
-        Initialize the logger.
-
-        Args:
-            log_group: CloudWatch log group name
-        """
         self.logger = logging.getLogger(__name__)
         self.log_group = log_group
         self.log_stream = "Canvas-Stream"
         self._cloudwatch_client: Any | None = None
+        self._sequence_token: str | None = None
         self.batch_logs: list[dict[str, Any]] = []
         self.batch_size = 10
         self.last_flush = time.time()
@@ -42,10 +35,13 @@ class OptimizedLogger:
 
     @property
     def cloudwatch_client(self) -> Any | None:
-        """Lazy initialization of CloudWatch client."""
+        """Lazy initialization of CloudWatch client via AWSClientManager."""
         if self._cloudwatch_client is None and config.is_lambda:
-            self._cloudwatch_client = boto3.client("logs", region_name=config.aws_region)
-            self._ensure_log_stream()
+            from src.services.aws_client import AWSClientManager
+
+            self._cloudwatch_client = AWSClientManager().logs_client
+            if self._cloudwatch_client:
+                self._ensure_log_stream()
         return self._cloudwatch_client
 
     def _ensure_log_stream(self) -> None:
@@ -59,30 +55,21 @@ class OptimizedLogger:
                 return
 
             try:
-                # Try to create the log stream
                 self._cloudwatch_client.create_log_stream(
                     logGroupName=self.log_group, logStreamName=self.log_stream
                 )
                 self._stream_created = True
                 self.logger.info(f"Created CloudWatch log stream: {self.log_stream}")
             except self._cloudwatch_client.exceptions.ResourceAlreadyExistsException:
-                # Another instance/thread created it - that's fine
                 self._stream_created = True
                 self.logger.debug(f"CloudWatch log stream already exists: {self.log_stream}")
             except self._cloudwatch_client.exceptions.ResourceNotFoundException:
-                # Log group doesn't exist
                 self.logger.error(f"CloudWatch log group not found: {self.log_group}")
             except Exception as e:
                 self.logger.error(f"Failed to create log stream {self.log_stream}: {e}")
 
     def log(self, message: str, level: str = "INFO") -> None:
-        """
-        Log message with optional CloudWatch batching.
-
-        Args:
-            message: Log message
-            level: Log level (DEBUG, INFO, WARNING, ERROR)
-        """
+        """Log message with optional CloudWatch batching."""
         timestamp = datetime.now()
 
         # Always log to standard logger
@@ -114,11 +101,15 @@ class OptimizedLogger:
         """Flush batched logs to CloudWatch (must be called with lock held)."""
         if self.batch_logs and self.cloudwatch_client:
             try:
-                self.cloudwatch_client.put_log_events(
-                    logGroupName=self.log_group,
-                    logStreamName=self.log_stream,
-                    logEvents=self.batch_logs,
-                )
+                kwargs: dict[str, Any] = {
+                    "logGroupName": self.log_group,
+                    "logStreamName": self.log_stream,
+                    "logEvents": sorted(self.batch_logs, key=lambda e: e["timestamp"]),
+                }
+                if self._sequence_token:
+                    kwargs["sequenceToken"] = self._sequence_token
+                response = self.cloudwatch_client.put_log_events(**kwargs)
+                self._sequence_token = response.get("nextSequenceToken")
                 self.batch_logs.clear()
                 self.last_flush = time.time()
             except Exception as e:
@@ -151,15 +142,7 @@ app_logger = OptimizedLogger()
 
 
 def log_performance(func: Callable[P, R]) -> Callable[P, R]:
-    """
-    Decorator to log function performance.
-
-    Args:
-        func: Function to wrap
-
-    Returns:
-        Wrapped function that logs execution time
-    """
+    """Decorator to log function performance."""
 
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:

@@ -1,3 +1,4 @@
+import threading
 import time
 from datetime import datetime
 from typing import Any
@@ -15,16 +16,19 @@ class HealthCheck:
     def __init__(self) -> None:
         self.client_manager = AWSClientManager()
         self.start_time = time.time()
+        self._counter_lock = threading.Lock()
         self.request_count = 0
         self.error_count = 0
 
-    def increment_request(self):
-        """Increment request counter"""
-        self.request_count += 1
+    def increment_request(self) -> None:
+        """Increment request counter (thread-safe)."""
+        with self._counter_lock:
+            self.request_count += 1
 
-    def increment_error(self):
-        """Increment error counter"""
-        self.error_count += 1
+    def increment_error(self) -> None:
+        """Increment error counter (thread-safe)."""
+        with self._counter_lock:
+            self.error_count += 1
 
     @handle_gracefully(default_return={"status": "error", "message": "Health check failed"})
     def get_health_status(self) -> dict[str, Any]:

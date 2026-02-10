@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 from src.models.config import config
-from src.utils.exceptions import ImageError, NSFWError, handle_gracefully
+from src.utils.exceptions import ImageError, NSFWError
 from src.utils.logger import app_logger, log_performance
 
 
@@ -374,7 +374,6 @@ def process_composite_to_mask(
     return Image.fromarray(mask, mode="L")
 
 
-@handle_gracefully(default_return="Error processing image")
 def process_and_encode_image(image: str | Image.Image | io.IOBase, **kwargs: Any) -> str:
     """
     Main entry point for image processing.
@@ -384,17 +383,11 @@ def process_and_encode_image(image: str | Image.Image | io.IOBase, **kwargs: Any
         **kwargs: Additional processing options
 
     Returns:
-        Base64 encoded image or error message
+        Base64 encoded image string
+
+    Raises:
+        ImageError: If image processing fails
+        NSFWError: If image is flagged as inappropriate
     """
-    try:
-        processor = OptimizedImageProcessor(image)
-        return processor.process(**kwargs)
-    except NSFWError as e:
-        app_logger.warning(f"NSFW content detected: {e.message}")
-        return e.message
-    except ImageError as e:
-        app_logger.error(f"Image processing error: {e.message}")
-        return e.message
-    except Exception as e:
-        app_logger.error(f"Unexpected image processing error: {e!s}")
-        raise ImageError(f"Unexpected error during image processing: {e!s}") from e
+    processor = OptimizedImageProcessor(image)
+    return processor.process(**kwargs)

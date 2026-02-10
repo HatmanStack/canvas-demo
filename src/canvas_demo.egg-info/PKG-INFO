@@ -6,7 +6,6 @@ Requires-Python: >=3.11
 Requires-Dist: Pillow>=11.1.0
 Requires-Dist: boto3
 Requires-Dist: python-dotenv
-Requires-Dist: requests
 Requires-Dist: gradio
 Requires-Dist: aiohttp
 Requires-Dist: psutil
@@ -18,5 +17,4 @@ Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
 Requires-Dist: ruff>=0.4; extra == "dev"
 Requires-Dist: mypy>=1.10; extra == "dev"
 Requires-Dist: boto3-stubs[bedrock-runtime,logs,s3]; extra == "dev"
-Requires-Dist: types-requests; extra == "dev"
 Requires-Dist: types-Pillow; extra == "dev"

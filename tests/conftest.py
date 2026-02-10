@@ -56,7 +56,6 @@ def mock_s3_client():
         "Body": MagicMock(read=lambda: json.dumps({"premium": [], "standard": []}).encode()),
     }
     mock.put_object.return_value = {}
-    mock.generate_presigned_url.return_value = "https://s3.example.com/presigned"
     return mock
 
 

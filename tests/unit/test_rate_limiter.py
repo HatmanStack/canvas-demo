@@ -1,4 +1,4 @@
-"""Tests for rate limiter with optimistic locking."""
+"""Tests for rate limiter with S3-backed tracking."""
 
 import json
 import time
@@ -27,17 +27,13 @@ class TestOptimizedRateLimiter:
 
         _, mock_s3 = mock_rate_limiter_deps
         mock_s3.get_object.return_value = {
-            "ETag": '"abc123"',
             "Body": MagicMock(read=lambda: json.dumps({"premium": [], "standard": []}).encode()),
         }
 
-        with patch("requests.put") as mock_put:
-            mock_put.return_value = MagicMock(status_code=200)
-            mock_put.return_value.raise_for_status = MagicMock()
-
-            limiter = OptimizedRateLimiter()
-            # Should not raise
-            limiter.check_rate_limit(rate_limit_request_body)
+        limiter = OptimizedRateLimiter()
+        # Should not raise
+        limiter.check_rate_limit(rate_limit_request_body)
+        mock_s3.put_object.assert_called_once()
 
     def test_invalid_json_raises_error(self, mock_config, mock_rate_limiter_deps):
         """Test that invalid JSON in request raises RateLimitError."""
@@ -47,6 +43,24 @@ class TestOptimizedRateLimiter:
         limiter = OptimizedRateLimiter()
         with pytest.raises(RateLimitError, match="Invalid request format"):
             limiter.check_rate_limit("not valid json")
+
+    def test_initialize_rate_data_on_no_such_key(
+        self, mock_config, mock_rate_limiter_deps, rate_limit_request_body
+    ):
+        """Test that NoSuchKey triggers initialization."""
+        from botocore.exceptions import ClientError
+
+        from src.services.rate_limiter import OptimizedRateLimiter
+
+        _, mock_s3 = mock_rate_limiter_deps
+        mock_s3.get_object.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchKey", "Message": "Not found"}}, "GetObject"
+        )
+
+        limiter = OptimizedRateLimiter()
+        limiter.check_rate_limit(rate_limit_request_body)
+        # Should have called put_object to initialize
+        mock_s3.put_object.assert_called_once()
 
 
 class TestRateLimitLogic:

@@ -5,7 +5,6 @@ from typing import Final
 
 # Constants
 HEX_COLOR_PATTERN: Final[re.Pattern[str]] = re.compile(r"^#[0-9A-Fa-f]{6}$")
-MIN_ENCODED_IMAGE_LENGTH: Final[int] = 200
 MAX_PROMPT_LENGTH: Final[int] = 1024
 MIN_PROMPT_LENGTH: Final[int] = 1
 MAX_COLORS: Final[int] = 10
@@ -73,21 +72,6 @@ def validate_hex_colors(colors_str: str | None, max_colors: int = MAX_COLORS) ->
         raise ValidationError(f"Maximum {max_colors} colors allowed, got {len(colors)}")
 
     return [validate_hex_color(c) for c in colors]
-
-
-def is_error_response(encoded_data: str) -> bool:
-    """
-    Check if encoded string is an error message rather than image data.
-
-    Base64-encoded images are always longer than error messages.
-
-    Args:
-        encoded_data: String that is either base64 image or error message
-
-    Returns:
-        True if the string appears to be an error message
-    """
-    return len(encoded_data) < MIN_ENCODED_IMAGE_LENGTH
 
 
 def validate_prompt(
