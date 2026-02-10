@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     AWS_REGION: "us-west-2"
-    AWS_ACCOUNT_ID: "631094035453"
+    AWS_ACCOUNT_ID: "${AWS_ACCOUNT_ID}"
     IMAGE_REPO_NAME: "production/canvas-demo"
     IMAGE_TAG: "latest"
 
