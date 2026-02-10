@@ -54,6 +54,13 @@ make test-cov      # Run with coverage (75% minimum)
 make test-integration  # Run integration tests (requires LocalStack)
 ```
 
+## Branch Protection (Recommended)
+
+Enable branch protection on `github-branch` in GitHub settings:
+- Require PR reviews before merging
+- Require all CI status checks to pass
+- Use squash-merge to keep history clean
+
 ## Architecture
 
 See `CLAUDE.md` for detailed architecture documentation.
