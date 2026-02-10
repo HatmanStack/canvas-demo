@@ -17,7 +17,7 @@ AWS Nova Canvas Image Generation
       <img src="https://img.shields.io/badge/Gradio%205.6.0-yellow" alt="Gradio" />
     </a>
     <a href="https://www.python.org/downloads/">
-    <img src="https://img.shields.io/badge/python->=3.11-blue">
+    <img src="https://img.shields.io/badge/python->=3.11-blue" alt="Python >= 3.11">
     </a>
   </h4>
 </div>

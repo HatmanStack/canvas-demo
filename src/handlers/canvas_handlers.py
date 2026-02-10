@@ -259,8 +259,10 @@ class CanvasHandlers:
             app_logger.debug("Using mask prompt for outpainting")
         elif mask_image and isinstance(mask_image, dict) and "composite" in mask_image:
             app_logger.debug("Processing composite mask for outpainting")
-            mask = process_composite_to_mask(mask_image["background"], None)
-            image_with_alpha = process_composite_to_mask(mask_image["background"], None, True)
+            mask = process_composite_to_mask(mask_image["background"], mask_image["composite"])
+            image_with_alpha = process_composite_to_mask(
+                mask_image["background"], mask_image["composite"], True
+            )
 
             image_encoded = process_and_encode_image(image_with_alpha)
             mask_image_encoded = process_and_encode_image(mask)
@@ -460,6 +462,7 @@ class CanvasHandlers:
             }
         )
 
+        self.limiter.check_rate_limit(body)
         result = self.bedrock.generate_image(body)
         return self._process_response(result)
 

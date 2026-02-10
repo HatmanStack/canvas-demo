@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
+from src.utils.exceptions import RateLimitError
+
 
 class TestOptimizedRateLimiter:
     """Tests for OptimizedRateLimiter class."""
@@ -193,9 +195,7 @@ class TestRateLimitExceeded:
 
         with (
             patch("src.services.rate_limiter.config") as mock_config,
-            pytest.raises(
-                (Exception,),
-            ),
+            pytest.raises(RateLimitError),
         ):
             mock_config.rate_limit = 20
             mock_config.nova_image_bucket = "test-bucket"
@@ -215,9 +215,7 @@ class TestRateLimitExceeded:
 
         with (
             patch("src.services.rate_limiter.config") as mock_config,
-            pytest.raises(
-                (Exception,),
-            ),
+            pytest.raises(RateLimitError),
         ):
             mock_config.rate_limit = 20
             mock_config.nova_image_bucket = "test-bucket"

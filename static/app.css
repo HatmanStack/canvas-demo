@@ -1,5 +1,8 @@
-::-webkit-scrollbar { display: none; }
-#component-0 { max-width: 800px; margin: 0 auto; }
+#component-0 {
+    max-width: 800px;
+    margin: 0 auto;
+    scrollbar-width: thin;
+}
 .center-markdown {
     text-align: center !important;
     display: flex !important;
