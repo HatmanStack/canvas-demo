@@ -6,7 +6,7 @@ import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
 
 import boto3
 from botocore.config import Config
@@ -15,6 +15,16 @@ from botocore.exceptions import ClientError
 from src.models.config import config
 from src.utils.exceptions import BedrockError, ConfigurationError
 from src.utils.logger import app_logger, log_performance
+
+if TYPE_CHECKING:
+    from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
+    from mypy_boto3_bedrock_runtime.type_defs import (
+        ConverseResponseTypeDef,
+        InvokeModelResponseTypeDef,
+        MessageTypeDef,
+    )
+    from mypy_boto3_logs import CloudWatchLogsClient
+    from mypy_boto3_s3 import S3Client
 
 
 class AWSClientManager:
@@ -25,9 +35,9 @@ class AWSClientManager:
     _client_lock: threading.Lock = threading.Lock()
 
     # Clients stored at class level for singleton behavior
-    _bedrock_client: Any = None
-    _s3_client: Any = None
-    _logs_client: Any = None
+    _bedrock_client: "BedrockRuntimeClient | None" = None
+    _s3_client: "S3Client | None" = None
+    _logs_client: "CloudWatchLogsClient | None" = None
 
     # Thread pool for async operations
     _executor: ThreadPoolExecutor | None = None
@@ -60,7 +70,7 @@ class AWSClientManager:
             cls._executor = None
 
     @property
-    def bedrock_client(self) -> Any:
+    def bedrock_client(self) -> "BedrockRuntimeClient":
         """Thread-safe lazy initialization of Bedrock client with connection pooling."""
         if self._bedrock_client is None:
             with self._client_lock:
@@ -86,7 +96,7 @@ class AWSClientManager:
         return self._bedrock_client
 
     @property
-    def s3_client(self) -> Any:
+    def s3_client(self) -> "S3Client":
         """Thread-safe lazy initialization of S3 client."""
         if self._s3_client is None:
             with self._client_lock:
@@ -106,7 +116,7 @@ class AWSClientManager:
         return self._s3_client
 
     @property
-    def logs_client(self) -> Any | None:
+    def logs_client(self) -> "CloudWatchLogsClient | None":
         """Thread-safe lazy initialization of CloudWatch Logs client."""
         if self._logs_client is None and config.is_lambda:
             with self._client_lock:
@@ -198,7 +208,8 @@ class BedrockService:
             app_logger.info("Calling Bedrock converse for prompt generation")
 
             response = self.client_manager.bedrock_client.converse(
-                modelId=config.nova_lite_model, messages=messages
+                modelId=config.nova_lite_model,
+                messages=cast("list[MessageTypeDef]", messages),
             )
 
             return self._process_text_response(response)
@@ -211,7 +222,7 @@ class BedrockService:
             app_logger.error(f"Unexpected error in prompt generation: {e!s}")
             raise BedrockError(f"Unexpected error: {e!s}") from e
 
-    def _process_image_response(self, response: dict[str, Any]) -> bytes:
+    def _process_image_response(self, response: "InvokeModelResponseTypeDef") -> bytes:
         """
         Process Bedrock image response.
 
@@ -257,7 +268,7 @@ class BedrockService:
         except Exception as e:
             raise BedrockError(f"Error processing image response: {e!s}") from e
 
-    def _process_text_response(self, response: dict[str, Any]) -> str:
+    def _process_text_response(self, response: "ConverseResponseTypeDef") -> str:
         """
         Process Bedrock text response.
 

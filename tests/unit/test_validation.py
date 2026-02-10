@@ -4,9 +4,7 @@ import pytest
 
 from src.utils.validation import (
     DEFAULT_COLORS,
-    MIN_ENCODED_IMAGE_LENGTH,
     ValidationError,
-    is_error_response,
     validate_cfg_scale,
     validate_dimensions,
     validate_hex_color,
@@ -91,28 +89,6 @@ class TestValidateHexColors:
         """Test that one invalid color raises error."""
         with pytest.raises(ValidationError, match="Invalid hex color format"):
             validate_hex_colors("#ff5733,invalid,#3357ff")
-
-
-class TestIsErrorResponse:
-    """Tests for is_error_response function."""
-
-    def test_short_string_is_error(self):
-        """Test that short string is considered error."""
-        assert is_error_response("Error: something failed") is True
-
-    def test_long_string_is_not_error(self):
-        """Test that long string is not considered error."""
-        long_string = "a" * (MIN_ENCODED_IMAGE_LENGTH + 1)
-        assert is_error_response(long_string) is False
-
-    def test_exact_threshold(self):
-        """Test string at exact threshold."""
-        exact = "a" * MIN_ENCODED_IMAGE_LENGTH
-        assert is_error_response(exact) is False
-
-    def test_empty_string(self):
-        """Test empty string is error."""
-        assert is_error_response("") is True
 
 
 class TestValidatePrompt:

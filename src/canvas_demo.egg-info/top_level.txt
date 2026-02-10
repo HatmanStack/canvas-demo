@@ -1,6 +1,0 @@
-__init__
-handlers
-models
-services
-types
-utils

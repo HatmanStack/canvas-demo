@@ -3,29 +3,27 @@
 from src.types.common import (
     BedrockRequest,
     ControlMode,
+    GradioImageMask,
     HealthStatus,
     ImageGenerationConfig,
-    ImageProcessorProtocol,
     OutpaintingMode,
     QualityLevel,
     RateLimitData,
-    RateLimiterProtocol,
     RateLimitUsage,
-    Result,
     ServiceStatus,
+    TaskType,
 )
 
 __all__ = [
     "BedrockRequest",
     "ControlMode",
+    "GradioImageMask",
     "HealthStatus",
     "ImageGenerationConfig",
-    "ImageProcessorProtocol",
     "OutpaintingMode",
     "QualityLevel",
     "RateLimitData",
     "RateLimitUsage",
-    "RateLimiterProtocol",
-    "Result",
     "ServiceStatus",
+    "TaskType",
 ]

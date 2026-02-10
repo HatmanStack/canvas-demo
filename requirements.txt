@@ -1,7 +1,6 @@
 Pillow==11.1.0
 boto3
 python-dotenv
-requests
 gradio
 aiohttp
 psutil

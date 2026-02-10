@@ -1,13 +1,12 @@
 """Common type definitions for Canvas Demo application."""
 
 from typing import (
-    Generic,
     Literal,
     NotRequired,
-    Protocol,
     TypedDict,
-    TypeVar,
 )
+
+from PIL import Image
 
 # Type aliases for constrained string values
 QualityLevel = Literal["standard", "premium"]
@@ -162,88 +161,9 @@ class HealthStatus(TypedDict):
     rate_limiting: RateLimitUsage
 
 
-# Protocols for dependency injection and testing
-class RateLimiterProtocol(Protocol):
-    """Protocol for rate limiter implementations."""
+class GradioImageMask(TypedDict, total=False):
+    """Gradio ImageMask dict structure."""
 
-    def check_rate_limit(self, request_body: str) -> None:
-        """Check if request should be rate limited. Raises RateLimitError if exceeded."""
-        ...
-
-    def get_current_usage(self) -> RateLimitUsage:
-        """Get current rate limit usage statistics."""
-        ...
-
-
-class ImageProcessorProtocol(Protocol):
-    """Protocol for image processor implementations."""
-
-    def process(self, check_nsfw: bool = True) -> str:
-        """Process image and return base64 encoded string."""
-        ...
-
-    def encode(self) -> str:
-        """Encode image to base64 string."""
-        ...
-
-
-# Generic Result type for operations that can fail
-T = TypeVar("T")
-
-
-class Result(Generic[T]):
-    """
-    Result type for operations that can fail.
-
-    Provides a clean way to handle success/failure without exceptions
-    for cases where failure is expected and part of normal flow.
-    """
-
-    __slots__ = ("_error", "_value")
-
-    def __init__(self, value: T | None = None, error: str | None = None) -> None:
-        self._value = value
-        self._error = error
-
-    @property
-    def is_ok(self) -> bool:
-        """Check if result is successful."""
-        return self._error is None
-
-    @property
-    def is_err(self) -> bool:
-        """Check if result is an error."""
-        return self._error is not None
-
-    @property
-    def value(self) -> T:
-        """Get the success value. Raises ValueError if result is an error."""
-        if self._error is not None:
-            raise ValueError(f"Result is an error: {self._error}")
-        return self._value
-
-    @property
-    def error(self) -> str | None:
-        """Get the error message, or None if successful."""
-        return self._error
-
-    def unwrap_or(self, default: T) -> T:
-        """Get the value or return default if error."""
-        if self._error is not None:
-            return default
-        return self._value
-
-    @classmethod
-    def ok(cls, value: T) -> "Result[T]":
-        """Create a successful result."""
-        return cls(value=value)
-
-    @classmethod
-    def err(cls, error: str) -> "Result[T]":
-        """Create an error result."""
-        return cls(error=error)
-
-    def __repr__(self) -> str:
-        if self._error is not None:
-            return f"Result.err({self._error!r})"
-        return f"Result.ok({self._value!r})"
+    background: Image.Image
+    composite: Image.Image
+    layers: list[Image.Image]

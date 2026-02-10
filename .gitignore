@@ -4,3 +4,21 @@ test_image_display.py
 diagnose_auth.py
 diagnose_lambda_image_issue.py
 __pycache__/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/

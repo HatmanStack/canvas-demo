@@ -1,4 +1,4 @@
-"""Tests for custom exceptions and decorators."""
+"""Tests for custom exceptions."""
 
 import os
 
@@ -16,7 +16,6 @@ from src.utils.exceptions import (
     ImageError,
     NSFWError,
     RateLimitError,
-    handle_gracefully,
 )
 
 
@@ -102,73 +101,3 @@ class TestBedrockError:
         error = BedrockError()
         assert error.message == "Bedrock service error"
         assert error.service == "bedrock"
-
-
-class TestHandleGracefully:
-    """Tests for handle_gracefully decorator."""
-
-    def test_successful_function(self):
-        """Test decorator doesn't interfere with successful function."""
-
-        @handle_gracefully(default_return="default")
-        def success_func():
-            return "success"
-
-        assert success_func() == "success"
-
-    def test_exception_returns_default(self):
-        """Test decorator returns default on exception."""
-
-        @handle_gracefully(default_return="default", log_error=False)
-        def failing_func():
-            raise ValueError("error")
-
-        assert failing_func() == "default"
-
-    def test_none_default(self):
-        """Test decorator with None default."""
-
-        @handle_gracefully(default_return=None, log_error=False)
-        def failing_func():
-            raise ValueError("error")
-
-        assert failing_func() is None
-
-    def test_tuple_default(self):
-        """Test decorator with tuple default."""
-
-        @handle_gracefully(default_return=(None, {"error": True}), log_error=False)
-        def failing_func():
-            raise ValueError("error")
-
-        result = failing_func()
-        assert result == (None, {"error": True})
-
-    def test_preserves_function_name(self):
-        """Test decorator preserves function metadata."""
-
-        @handle_gracefully(default_return=None)
-        def my_named_function():
-            """My docstring."""
-            return "value"
-
-        assert my_named_function.__name__ == "my_named_function"
-        assert my_named_function.__doc__ == "My docstring."
-
-    def test_with_arguments(self):
-        """Test decorator works with function arguments."""
-
-        @handle_gracefully(default_return=0)
-        def add_numbers(a, b):
-            return a + b
-
-        assert add_numbers(2, 3) == 5
-
-    def test_with_kwargs(self):
-        """Test decorator works with keyword arguments."""
-
-        @handle_gracefully(default_return="default")
-        def greet(name="World"):
-            return f"Hello, {name}"
-
-        assert greet(name="Test") == "Hello, Test"
