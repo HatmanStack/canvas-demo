@@ -5,6 +5,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from botocore.exceptions import ClientError
 
 
 class TestOptimizedRateLimiter:
@@ -161,3 +162,142 @@ class TestRateLimitLogic:
             no_quality_dict.get("imageGenerationConfig", {}).get("quality", "standard")
             == "standard"
         )
+
+
+class TestRateLimitExceeded:
+    """Tests for rate limit exceeded scenarios."""
+
+    @pytest.fixture
+    def limiter_with_mock(self):
+        """Create a rate limiter with mocked AWS dependencies."""
+        with patch("src.services.rate_limiter.AWSClientManager") as mock_manager:
+            mock_instance = MagicMock()
+            mock_manager.return_value = mock_instance
+            from src.services.rate_limiter import OptimizedRateLimiter
+
+            rl = OptimizedRateLimiter()
+            rl.client_manager = mock_instance
+            yield rl, mock_instance
+
+    def test_rate_limit_exceeded_raises(self, limiter_with_mock):
+        """20 standard entries + 1 new exceeds limit of 20."""
+        rl, mock_cm = limiter_with_mock
+        now = time.time()
+        rate_data = {"premium": [], "standard": [now - i for i in range(20)]}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode())
+        }
+
+        body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
+
+        with (
+            patch("src.services.rate_limiter.config") as mock_config,
+            pytest.raises(
+                (Exception,),
+            ),
+        ):
+            mock_config.rate_limit = 20
+            mock_config.nova_image_bucket = "test-bucket"
+            rl.check_rate_limit(body)
+
+    def test_premium_request_costs_two(self, limiter_with_mock):
+        """19 standard + 1 premium (cost 2) = 21 > 20, exceeds limit."""
+        rl, mock_cm = limiter_with_mock
+        now = time.time()
+        rate_data = {"premium": [], "standard": [now - i for i in range(19)]}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode())
+        }
+
+        body = json.dumps({"imageGenerationConfig": {"quality": "premium"}})
+
+        with (
+            patch("src.services.rate_limiter.config") as mock_config,
+            pytest.raises(
+                (Exception,),
+            ),
+        ):
+            mock_config.rate_limit = 20
+            mock_config.nova_image_bucket = "test-bucket"
+            rl.check_rate_limit(body)
+
+    def test_fail_open_on_generic_client_error(self, limiter_with_mock):
+        """Non-NoSuchKey ClientError allows request (fail open)."""
+        rl, mock_cm = limiter_with_mock
+        mock_cm.s3_client.get_object.side_effect = ClientError(
+            {"Error": {"Code": "InternalError", "Message": "boom"}},
+            "GetObject",
+        )
+
+        body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
+
+        with patch("src.services.rate_limiter.config") as mock_config:
+            mock_config.rate_limit = 20
+            mock_config.nova_image_bucket = "test-bucket"
+            # Should not raise — fail open
+            rl.check_rate_limit(body)
+
+
+class TestGetCurrentUsage:
+    """Tests for get_current_usage."""
+
+    @pytest.fixture
+    def limiter_with_mock(self):
+        """Create a rate limiter with mocked AWS dependencies."""
+        with patch("src.services.rate_limiter.AWSClientManager") as mock_manager:
+            mock_instance = MagicMock()
+            mock_manager.return_value = mock_instance
+            from src.services.rate_limiter import OptimizedRateLimiter
+
+            rl = OptimizedRateLimiter()
+            rl.client_manager = mock_instance
+            yield rl, mock_instance
+
+    def test_returns_correct_dict(self, limiter_with_mock):
+        """Returns correctly structured usage dict."""
+        rl, mock_cm = limiter_with_mock
+        now = time.time()
+        rate_data = {"premium": [now - 10], "standard": [now - 5, now - 3]}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode())
+        }
+
+        with patch("src.services.rate_limiter.config") as mock_config:
+            mock_config.rate_limit = 20
+            mock_config.nova_image_bucket = "test-bucket"
+            usage = rl.get_current_usage()
+
+        assert usage["premium_requests"] == 1
+        assert usage["standard_requests"] == 2
+        assert usage["total_usage"] == 4  # 1*2 + 2*1
+        assert usage["limit"] == 20
+        assert usage["remaining"] == 16
+
+    def test_no_such_key_returns_empty(self, limiter_with_mock):
+        """NoSuchKey error returns zero-value dict."""
+        rl, mock_cm = limiter_with_mock
+        mock_cm.s3_client.get_object.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchKey", "Message": ""}},
+            "GetObject",
+        )
+
+        with patch("src.services.rate_limiter.config") as mock_config:
+            mock_config.rate_limit = 20
+            usage = rl.get_current_usage()
+
+        assert usage["total_usage"] == 0
+        assert usage["remaining"] == 20
+
+    def test_generic_error_returns_empty(self, limiter_with_mock):
+        """Generic error returns zero-value dict."""
+        rl, mock_cm = limiter_with_mock
+        mock_cm.s3_client.get_object.side_effect = RuntimeError("boom")
+
+        with patch("src.services.rate_limiter.config") as mock_config:
+            mock_config.rate_limit = 20
+            usage = rl.get_current_usage()
+
+        assert usage["total_usage"] == 0
