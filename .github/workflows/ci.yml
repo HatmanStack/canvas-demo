@@ -131,6 +131,17 @@ jobs:
           LOCALSTACK_URL: http://localhost:4566
         run: pytest tests/integration/ -v -m integration
 
+  link-check:
+    name: Check Links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress '**/*.md'
+          fail: true
+
   commit-lint:
     name: Commit Messages
     runs-on: ubuntu-latest
