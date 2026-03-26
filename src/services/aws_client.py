@@ -70,6 +70,18 @@ class AWSClientManager:
             cls._executor.shutdown(wait=False)
             cls._executor = None
 
+    @classmethod
+    def _reset(cls) -> None:
+        """Reset singleton state for testing. Not for production use."""
+        with cls._lock:
+            if cls._executor is not None:
+                cls._executor.shutdown(wait=False)
+            cls._instance = None
+            cls._bedrock_client = None
+            cls._s3_client = None
+            cls._logs_client = None
+            cls._executor = None
+
     @property
     def bedrock_client(self) -> "BedrockRuntimeClient":
         """Thread-safe lazy initialization of Bedrock client with connection pooling."""
@@ -353,5 +365,18 @@ class BedrockService:
             app_logger.warning(f"Failed to store response to S3: {e!s}")
 
 
-# Global service instance
-bedrock_service = BedrockService()
+_bedrock_service: BedrockService | None = None
+
+
+def get_bedrock_service() -> BedrockService:
+    """Get or create the BedrockService singleton."""
+    global _bedrock_service
+    if _bedrock_service is None:
+        _bedrock_service = BedrockService()
+    return _bedrock_service
+
+
+def reset_bedrock_service() -> None:
+    """Reset BedrockService for testing. Not for production use."""
+    global _bedrock_service
+    _bedrock_service = None

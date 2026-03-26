@@ -218,5 +218,18 @@ class OptimizedRateLimiter:
             return self._empty_usage()
 
 
-# Global rate limiter instance
-rate_limiter = OptimizedRateLimiter()
+_rate_limiter: OptimizedRateLimiter | None = None
+
+
+def get_rate_limiter() -> OptimizedRateLimiter:
+    """Get or create the rate limiter singleton."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        _rate_limiter = OptimizedRateLimiter()
+    return _rate_limiter
+
+
+def reset_rate_limiter() -> None:
+    """Reset rate limiter for testing. Not for production use."""
+    global _rate_limiter
+    _rate_limiter = None

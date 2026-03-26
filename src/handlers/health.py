@@ -5,7 +5,7 @@ from typing import Any
 
 from src.models.config import get_config
 from src.services.aws_client import AWSClientManager
-from src.services.rate_limiter import rate_limiter
+from src.services.rate_limiter import get_rate_limiter
 from src.utils.logger import app_logger
 
 
@@ -48,7 +48,7 @@ class HealthCheck:
             health_info["metrics"] = metrics
 
             # Rate limiting status
-            rate_status = rate_limiter.get_current_usage()
+            rate_status = get_rate_limiter().get_current_usage()
             health_info["rate_limiting"] = rate_status
 
             # Overall health determination
@@ -182,5 +182,18 @@ class HealthCheck:
             return {"status": "error", "message": str(e), "timestamp": datetime.now().isoformat()}
 
 
-# Global health checker instance
-health_checker = HealthCheck()
+_health_checker: HealthCheck | None = None
+
+
+def get_health_checker() -> HealthCheck:
+    """Get or create the health checker singleton."""
+    global _health_checker
+    if _health_checker is None:
+        _health_checker = HealthCheck()
+    return _health_checker
+
+
+def reset_health_checker() -> None:
+    """Reset health checker for testing. Not for production use."""
+    global _health_checker
+    _health_checker = None

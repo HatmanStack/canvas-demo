@@ -12,13 +12,13 @@ from typing import Any
 import gradio as gr
 from PIL import Image
 
-from src.services.aws_client import BedrockService, bedrock_service
+from src.services.aws_client import BedrockService, get_bedrock_service
 from src.services.image_processor import (
     create_padded_image,
     process_and_encode_image,
     process_composite_to_mask,
 )
-from src.services.rate_limiter import OptimizedRateLimiter, rate_limiter
+from src.services.rate_limiter import OptimizedRateLimiter, get_rate_limiter
 from src.types.common import (
     ControlMode,
     GradioImageMask,
@@ -507,5 +507,18 @@ class CanvasHandlers:
             return f"Error generating prompt: {e!s}"
 
 
-# Create global handlers instance with injected dependencies
-canvas_handlers = CanvasHandlers(bedrock_service, rate_limiter)
+_canvas_handlers: CanvasHandlers | None = None
+
+
+def get_canvas_handlers() -> CanvasHandlers:
+    """Get or create the CanvasHandlers singleton."""
+    global _canvas_handlers
+    if _canvas_handlers is None:
+        _canvas_handlers = CanvasHandlers(get_bedrock_service(), get_rate_limiter())
+    return _canvas_handlers
+
+
+def reset_canvas_handlers() -> None:
+    """Reset canvas handlers for testing. Not for production use."""
+    global _canvas_handlers
+    _canvas_handlers = None

@@ -15,7 +15,7 @@ class TestHealthCheck:
         """Mock external dependencies."""
         with (
             patch("src.handlers.health.AWSClientManager") as mock_manager,
-            patch("src.handlers.health.rate_limiter") as mock_limiter,
+            patch("src.handlers.health.get_rate_limiter") as mock_get_limiter,
             patch("src.handlers.health.get_config") as mock_get_config,
         ):
             # Setup config mock
@@ -36,6 +36,7 @@ class TestHealthCheck:
             mock_instance.executor = None  # No executor by default
 
             # Setup rate limiter mock
+            mock_limiter = mock_get_limiter.return_value
             mock_limiter.get_current_usage.return_value = {
                 "premium_requests": 0,
                 "standard_requests": 0,
@@ -44,7 +45,7 @@ class TestHealthCheck:
                 "remaining": 100,
             }
 
-            yield mock_manager, mock_limiter, mock_config
+            yield mock_manager, mock_get_limiter, mock_config
 
     def test_health_check_healthy(self, mock_deps):
         """Test healthy status response."""
@@ -92,8 +93,8 @@ class TestHealthCheck:
 
     def test_health_check_exception_returns_error(self, mock_deps):
         """Test that exceptions in get_health_status return error dict."""
-        _, mock_limiter, _ = mock_deps
-        mock_limiter.get_current_usage.side_effect = RuntimeError("Unexpected")
+        _, mock_get_limiter, _ = mock_deps
+        mock_get_limiter.return_value.get_current_usage.side_effect = RuntimeError("Unexpected")
 
         health = HealthCheck()
         status = health.get_health_status()

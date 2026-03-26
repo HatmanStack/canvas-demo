@@ -2,8 +2,8 @@ from pathlib import Path
 
 import gradio as gr
 
-from src.handlers.canvas_handlers import canvas_handlers
-from src.handlers.health import health_checker
+from src.handlers.canvas_handlers import get_canvas_handlers
+from src.handlers.health import get_health_checker
 from src.models.config import get_config
 from src.utils.lambda_helpers import lambda_image_handler
 from src.utils.logger import app_logger
@@ -99,11 +99,11 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
 
             with gr.Row():
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=txt2img_prompt
                 )
                 gr.Button("Generate Image", elem_id="text_to_image_generate_button").click(
-                    canvas_handlers.text_to_image,
+                    get_canvas_handlers().text_to_image,
                     inputs=[txt2img_prompt, txt2img_negative_text, txt2img_height, txt2img_width, txt2img_quality, txt2img_cfg_scale, txt2img_seed],
                     outputs=[output, txt2img_error_box]
                 )
@@ -137,11 +137,11 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
 
             with gr.Row():
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=inpaint_prompt
                 )
                 gr.Button("Generate Image").click(
-                    canvas_handlers.inpainting,
+                    get_canvas_handlers().inpainting,
                     inputs=[mask_image, mask_prompt, inpaint_prompt, inpaint_negative_text, inpaint_height, inpaint_width, inpaint_quality, inpaint_cfg_scale, inpaint_seed],
                     outputs=[inpaint_output, inpaint_error_box]
                 )
@@ -156,7 +156,7 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
             outpaint_mask_image = gr.ImageMask(type="pil", label="Draw mask (white areas will be edited)")
 
             gr.Button("Create Padding").click(
-                fn=canvas_handlers.update_mask_editor,
+                fn=get_canvas_handlers().update_mask_editor,
                 inputs=[outpaint_mask_image],
                 outputs=[outpaint_mask_image]
             )
@@ -186,11 +186,11 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
 
             with gr.Row():
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=outpaint_prompt
                 )
                 gr.Button("Generate Image").click(
-                    canvas_handlers.outpainting,
+                    get_canvas_handlers().outpainting,
                     inputs=[outpaint_mask_image, outpaint_mask_prompt, outpaint_prompt, outpaint_negative_text, outpainting_mode, outpaint_height, outpaint_width, outpaint_quality, outpaint_cfg_scale, outpaint_seed],
                     outputs=[outpaint_output, outpaint_error_box]
                 )
@@ -216,7 +216,7 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
                     max_lines=4
                 )
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=prompt
                 )
 
@@ -234,7 +234,7 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
             output = gr.Image(label="Generated Image")
 
             gr.Button("Generate Image").click(
-                canvas_handlers.image_variation,
+                get_canvas_handlers().image_variation,
                 inputs=[images, prompt, negative_text, similarity_strength, height, width, quality, cfg_scale, seed],
                 outputs=[output, error_box]
             )
@@ -273,11 +273,11 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
 
             with gr.Row():
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=prompt
                 )
                 gr.Button("Generate Image").click(
-                    canvas_handlers.image_conditioning,
+                    get_canvas_handlers().image_conditioning,
                     inputs=[condition_image, prompt, negative_text, control_mode, control_strength, height, width, quality, cfg_scale, seed],
                     outputs=[output, error_box]
                 )
@@ -322,11 +322,11 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
 
             with gr.Row():
                 gr.Button("Generate Prompt").click(
-                    canvas_handlers.generate_nova_prompt,
+                    get_canvas_handlers().generate_nova_prompt,
                     outputs=prompt
                 )
                 gr.Button("Generate Image").click(
-                    canvas_handlers.color_guided_content,
+                    get_canvas_handlers().color_guided_content,
                     inputs=[prompt, reference_image, negative_text, colors, height, width, quality, cfg_scale, seed],
                     outputs=[output, error_box]
                 )
@@ -342,7 +342,7 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
         output = gr.Image(label="Processed Image")
 
         gr.Button("Remove Background").click(
-            canvas_handlers.background_removal,
+            get_canvas_handlers().background_removal,
             inputs=image,
             outputs=[output, error_box]
         )
@@ -359,7 +359,7 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
         gr.Markdown("## System Health", elem_classes="center-markdown")
         health_display = gr.JSON(label="Health Status")
         gr.Button("Refresh Health Status").click(
-            health_checker.get_health_status,
+            get_health_checker().get_health_status,
             outputs=health_display
         )
 
