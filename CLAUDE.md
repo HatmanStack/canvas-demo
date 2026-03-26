@@ -9,12 +9,14 @@ AWS Bedrock Nova Canvas image generation app built with Gradio and deployed as a
 ## Common Commands
 
 ### Install dependencies
+
 ```bash
 uv pip install --system -r requirements.txt
 uv pip install --system -e ".[dev]"
 ```
 
 ### Lint and format
+
 ```bash
 ruff check src/ tests/
 ruff format --check src/ tests/    # check only
@@ -23,11 +25,13 @@ ruff check --fix src/ tests/        # auto-fix lint issues
 ```
 
 ### Type check
+
 ```bash
 mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
 ```
 
 ### Run tests
+
 ```bash
 pytest tests/ -v --tb=short                                          # all tests
 pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=75  # with coverage
@@ -36,6 +40,7 @@ pytest tests/unit/test_validation.py::test_function_name              # single t
 ```
 
 ### Run the app locally
+
 ```bash
 python app.py
 ```
@@ -45,6 +50,7 @@ python app.py
 **Entry point**: `app.py` — Gradio UI with 7 image generation tabs + System Info tab, Lambda/local auto-detection.
 
 **`src/` layout**:
+
 - `models/config.py` — Dataclass-based config; reads AWS creds from `AMP_AWS_ID`/`AMP_AWS_SECRET` env vars (non-reserved Lambda names)
 - `services/aws_client.py` — Thread-safe singleton AWS client manager with connection pooling (Bedrock in us-east-1, S3 configurable)
 - `services/image_processor.py` — Image validation, resizing, encoding, mask processing
