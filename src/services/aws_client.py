@@ -6,7 +6,7 @@ import json
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Final, cast
 
 import boto3
@@ -336,7 +336,7 @@ class BedrockService:
             image_data: The generated image bytes
         """
         try:
-            timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+            timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S_%f")
             unique_id = uuid.uuid4().hex[:8]
 
             # Store response body

@@ -5,7 +5,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
@@ -75,7 +75,7 @@ class OptimizedLogger:
         if level.upper() not in self._VALID_LEVELS:
             level = "INFO"
         prefix = f"[{request_id}] " if request_id else ""
-        timestamp = datetime.now(tz=timezone.utc)
+        timestamp = datetime.now(tz=UTC)
 
         # Always log to standard logger
         getattr(self.logger, level.lower())(f"{prefix}{message}")

@@ -1,6 +1,6 @@
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.models.config import get_config
@@ -32,7 +32,7 @@ class HealthCheck:
             # Basic health info
             health_info = {
                 "status": "healthy",
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "uptime_seconds": round(uptime_seconds, 2),
                 "uptime_human": self._format_uptime(uptime_seconds),
                 "environment": "lambda" if get_config().is_lambda else "local",
@@ -179,7 +179,11 @@ class HealthCheck:
             full_status = self.get_health_status()
             return {"status": full_status["status"], "timestamp": full_status["timestamp"]}
         except Exception as e:
-            return {"status": "error", "message": str(e), "timestamp": datetime.now(tz=timezone.utc).isoformat()}
+            return {
+                "status": "error",
+                "message": str(e),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+            }
 
 
 _health_checker: HealthCheck | None = None
