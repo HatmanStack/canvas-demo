@@ -10,6 +10,13 @@ from src.utils.logger import app_logger
 
 app_logger.info("Starting Canvas Demo application")
 
+def append_color(current_colors: str, new_color: str) -> str:
+    """Append a color picker selection to the colors textbox."""
+    if not current_colors or not current_colors.strip():
+        return new_color
+    return f"{current_colors},{new_color}"
+
+
 def create_advanced_options():
     """Create reusable advanced options components"""
     app_logger.debug("Creating advanced options UI components")
@@ -296,6 +303,8 @@ with gr.Blocks(title="AWS Nova Canvas", head=error_interceptor_script, css=_app_
                         value='#473c80',
                         interactive=True
                     )
+
+            color_picker.change(append_color, inputs=[colors, color_picker], outputs=colors)
 
             with gr.Accordion("Advanced Options", open=False):
                 negative_text, width, height, quality, cfg_scale, seed = create_advanced_options()
