@@ -3,6 +3,7 @@
 import io
 import json
 import random
+import uuid
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -58,14 +59,20 @@ def gradio_handler(operation: str) -> Callable[..., Any]:
     def decorator(func: Callable[..., GradioImageResult]) -> Callable[..., GradioImageResult]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> GradioImageResult:
+            request_id = uuid.uuid4().hex[:12]
+            app_logger.info(f"Starting {operation}", request_id=request_id)
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                app_logger.info(f"Completed {operation}", request_id=request_id)
+                return result
             except (ImageError, NSFWError, RateLimitError) as e:
+                app_logger.warning(f"{operation}: {e.message}", request_id=request_id)
                 return None, gr.update(visible=True, value=e.message)
             except ValidationError as e:
+                app_logger.warning(f"{operation}: {e}", request_id=request_id)
                 return None, gr.update(visible=True, value=str(e))
             except Exception as e:
-                app_logger.error(f"{operation} error: {e!s}")
+                app_logger.error(f"{operation} error: {e!s}", request_id=request_id)
                 return None, gr.update(visible=True, value=f"{operation} failed. Please try again.")
 
         return wrapper

@@ -1,6 +1,7 @@
 """Unit tests for CanvasHandlers."""
 
 import io
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -372,3 +373,42 @@ class TestCanvasHandlers:
         """Test update_mask_editor with empty dict returns None."""
         result = handlers.update_mask_editor({})
         assert result is None
+
+    def test_gradio_handler_generates_request_id(self, handlers, mock_bedrock, img_bytes, caplog):
+        """Test that gradio_handler generates a unique request ID in log messages."""
+        mock_bedrock.generate_image.return_value = img_bytes
+
+        with caplog.at_level(logging.INFO):
+            handlers.text_to_image("a cute sloth")
+
+        # Find log messages with request ID pattern [hex12chars]
+        import re
+
+        request_id_pattern = re.compile(r"\[([0-9a-f]{12})\]")
+        matches = request_id_pattern.findall(caplog.text)
+        assert len(matches) >= 2  # At least "Starting" and "Completed" messages
+        # All request IDs in a single call should be the same
+        assert len(set(matches)) == 1
+
+    def test_gradio_handler_request_id_unique_per_call(
+        self, handlers, mock_bedrock, img_bytes, caplog
+    ):
+        """Test that each handler call gets a different request ID."""
+        mock_bedrock.generate_image.return_value = img_bytes
+
+        import re
+
+        request_id_pattern = re.compile(r"\[([0-9a-f]{12})\]")
+
+        with caplog.at_level(logging.INFO):
+            handlers.text_to_image("prompt one")
+            first_ids = set(request_id_pattern.findall(caplog.text))
+
+        caplog.clear()
+
+        with caplog.at_level(logging.INFO):
+            handlers.text_to_image("prompt two")
+            second_ids = set(request_id_pattern.findall(caplog.text))
+
+        # IDs from first and second call should differ
+        assert first_ids != second_ids

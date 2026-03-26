@@ -68,12 +68,17 @@ class OptimizedLogger:
             except Exception as e:
                 self.logger.error(f"Failed to create log stream {self.log_stream}: {e}")
 
-    def log(self, message: str, level: str = "INFO") -> None:
+    _VALID_LEVELS: frozenset[str] = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
+    def log(self, message: str, level: str = "INFO", request_id: str = "") -> None:
         """Log message with optional CloudWatch batching."""
+        if level.upper() not in self._VALID_LEVELS:
+            level = "INFO"
+        prefix = f"[{request_id}] " if request_id else ""
         timestamp = datetime.now()
 
         # Always log to standard logger
-        getattr(self.logger, level.lower())(message)
+        getattr(self.logger, level.lower())(f"{prefix}{message}")
 
         # Batch CloudWatch logs in Lambda environment
         if get_config().is_lambda and self.cloudwatch_client:
@@ -81,7 +86,7 @@ class OptimizedLogger:
                 self.batch_logs.append(
                     {
                         "timestamp": int(timestamp.timestamp() * 1000),
-                        "message": f"[{timestamp}] {message}",
+                        "message": f"[{timestamp}] {prefix}{message}",
                     }
                 )
 
@@ -115,21 +120,21 @@ class OptimizedLogger:
             except Exception as e:
                 self.logger.error(f"Failed to flush logs to CloudWatch: {e}")
 
-    def debug(self, message: str) -> None:
+    def debug(self, message: str, request_id: str = "") -> None:
         """Log at DEBUG level."""
-        self.log(message, "DEBUG")
+        self.log(message, "DEBUG", request_id=request_id)
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, request_id: str = "") -> None:
         """Log at INFO level."""
-        self.log(message, "INFO")
+        self.log(message, "INFO", request_id=request_id)
 
-    def warning(self, message: str) -> None:
+    def warning(self, message: str, request_id: str = "") -> None:
         """Log at WARNING level."""
-        self.log(message, "WARNING")
+        self.log(message, "WARNING", request_id=request_id)
 
-    def error(self, message: str) -> None:
+    def error(self, message: str, request_id: str = "") -> None:
         """Log at ERROR level."""
-        self.log(message, "ERROR")
+        self.log(message, "ERROR", request_id=request_id)
 
     def __del__(self) -> None:
         """Ensure logs are flushed on cleanup."""
