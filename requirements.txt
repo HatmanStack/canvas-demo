@@ -2,6 +2,5 @@ Pillow==12.1.1
 boto3
 python-dotenv
 gradio
-aiohttp
 psutil
 numpy

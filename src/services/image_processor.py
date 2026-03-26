@@ -1,14 +1,16 @@
-"""Image processing with async NSFW checking and efficient operations."""
+"""Image processing with synchronous NSFW checking and efficient operations."""
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import hashlib
 import io
+import json
+import time
+import urllib.error
+import urllib.request
 from typing import TYPE_CHECKING, Any
 
-import aiohttp
 import numpy as np
 from PIL import Image
 
@@ -96,94 +98,52 @@ class OptimizedImageProcessor:
             raise ImageError(f"Failed to open image: {e!s}") from e
 
     @log_performance
-    async def check_nsfw_async(
-        self, timeout: int | None = None, max_retries: int | None = None
-    ) -> bool:
-        """
-        Async NSFW check with circuit breaker pattern.
-
-        Args:
-            timeout: Request timeout in seconds
-            max_retries: Maximum retry attempts
-
-        Returns:
-            True if content is NSFW, False otherwise
-        """
+    def check_nsfw(self) -> bool:
+        """Check image for NSFW content via HuggingFace API."""
         if not get_config().enable_nsfw_check or not get_config().hf_token:
             app_logger.debug("NSFW check skipped (disabled or no token)")
             return False
 
-        timeout = timeout or get_config().nsfw_timeout
-        max_retries = max_retries or get_config().nsfw_max_retries
+        timeout = get_config().nsfw_timeout
+        max_retries = get_config().nsfw_max_retries
 
-        # Prepare image data
         temp_buffer = io.BytesIO()
         self.image.save(temp_buffer, format="PNG")
-        temp_buffer.seek(0)
-
-        headers = {
-            "Authorization": f"Bearer {get_config().hf_token}",
-            "x-use-cache": "0",
-            "Content-Type": "application/json",
-        }
+        image_data = temp_buffer.getvalue()
 
         for attempt in range(max_retries):
             try:
-                async with (
-                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session,
-                    session.post(
-                        get_config().nsfw_api_url,
-                        headers=headers,
-                        data=temp_buffer.getvalue(),
-                    ) as response,
-                ):
-                    if response.status == 200:
-                        json_response = await response.json()
-                        nsfw_score = next(
-                            (item["score"] for item in json_response if item["label"] == "nsfw"),
-                            0,
-                        )
+                req = urllib.request.Request(
+                    get_config().nsfw_api_url,
+                    data=image_data,
+                    headers={
+                        "Authorization": f"Bearer {get_config().hf_token}",
+                        "Content-Type": "application/octet-stream",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=timeout) as response:
+                    result = json.loads(response.read())
+                    nsfw_score = next(
+                        (item["score"] for item in result if item["label"] == "nsfw"), 0
+                    )
+                    app_logger.debug(f"NSFW Score: {nsfw_score}")
+                    return nsfw_score > 0.5
 
-                        app_logger.debug(f"NSFW Score: {nsfw_score}")
-                        return nsfw_score > 0.5
-
-                    elif response.status == 503:  # Service Unavailable
-                        retry_after = int(response.headers.get("Retry-After", 5))
-                        app_logger.warning(f"NSFW API unavailable, retry in {retry_after}s")
-                        await asyncio.sleep(retry_after)
-                        continue
-                    else:
-                        app_logger.warning(f"NSFW API returned status {response.status}")
-
-            except TimeoutError:
-                app_logger.warning(f"NSFW check timeout (attempt {attempt + 1}/{max_retries})")
+            except urllib.error.HTTPError as e:
+                if e.code == 503 and attempt < max_retries - 1:
+                    retry_after = int(e.headers.get("Retry-After", 5))
+                    app_logger.warning(f"NSFW API unavailable, retry in {retry_after}s")
+                    time.sleep(retry_after)
+                    continue
+                app_logger.warning(f"NSFW API error: {e}")
             except Exception as e:
                 app_logger.warning(f"NSFW check error (attempt {attempt + 1}/{max_retries}): {e!s}")
 
             if attempt < max_retries - 1:
-                await asyncio.sleep(2**attempt)  # Exponential backoff
+                time.sleep(2**attempt)
 
-        # If all retries failed, continue without check
         app_logger.warning("NSFW check failed after all retries, continuing without check")
         return False
-
-    def check_nsfw_sync(self) -> bool:
-        """
-        Synchronous wrapper for NSFW check.
-
-        Returns:
-            True if content is NSFW, False otherwise
-        """
-        try:
-            # Python 3.10+ recommended pattern
-            return asyncio.run(self.check_nsfw_async())
-        except RuntimeError:
-            # Fallback if already in async context or other runtime issues
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(self.check_nsfw_async())
-            finally:
-                loop.close()
 
     @log_performance
     def _convert_color_mode(self) -> OptimizedImageProcessor:
@@ -320,7 +280,7 @@ class OptimizedImageProcessor:
             if cached is True:
                 raise NSFWError("Image flagged as inappropriate")
             if cached is None:
-                is_nsfw = self.check_nsfw_sync()
+                is_nsfw = self.check_nsfw()
                 _nsfw_cache.put(self.image, is_nsfw)
                 if is_nsfw:
                     raise NSFWError("Image flagged as inappropriate")

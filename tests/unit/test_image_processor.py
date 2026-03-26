@@ -2,7 +2,9 @@
 
 import base64
 import io
-from unittest.mock import patch
+import json
+import urllib.error
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image
@@ -204,7 +206,7 @@ class TestOptimizedImageProcessor:
         """Process runs convert -> resize -> ensure -> encode."""
         img = Image.new("RGBA", (3000, 3000), color=(255, 0, 0, 128))
         proc = OptimizedImageProcessor(img)
-        with patch.object(proc, "check_nsfw_sync", return_value=False):
+        with patch.object(proc, "check_nsfw", return_value=False):
             result = proc.process(check_nsfw=False)
         decoded = base64.b64decode(result)
         result_img = Image.open(io.BytesIO(decoded))
@@ -226,6 +228,129 @@ class TestOptimizedImageProcessor:
                 mock_cache.get.return_value = True
                 with pytest.raises(NSFWError):
                     proc.process(check_nsfw=True)
+
+
+class TestCheckNsfw:
+    """Tests for synchronous NSFW check."""
+
+    def test_nsfw_check_skips_when_disabled(self):
+        """NSFW check returns False when disabled."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            result = proc.check_nsfw()
+
+        assert result is False
+
+    def test_nsfw_check_skips_when_no_token(self):
+        """NSFW check returns False when no HF token."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = ""
+            result = proc.check_nsfw()
+
+        assert result is False
+
+    def test_nsfw_check_returns_true_on_nsfw_content(self):
+        """NSFW check returns True when API reports nsfw score > 0.5."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        response_data = json.dumps([{"label": "nsfw", "score": 0.9}]).encode()
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 1
+
+            mock_response = MagicMock()
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.read.return_value = response_data
+            mock_urlopen.return_value = mock_response
+
+            result = proc.check_nsfw()
+
+        assert result is True
+
+    def test_nsfw_check_returns_false_on_safe_content(self):
+        """NSFW check returns False when nsfw score < 0.5."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        response_data = json.dumps([{"label": "nsfw", "score": 0.1}]).encode()
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 1
+
+            mock_response = MagicMock()
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.read.return_value = response_data
+            mock_urlopen.return_value = mock_response
+
+            result = proc.check_nsfw()
+
+        assert result is False
+
+    def test_nsfw_check_503_retry(self):
+        """NSFW check retries on 503 errors."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+            patch("src.services.image_processor.time.sleep"),
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 2
+
+            # First call: 503, second: success
+            http_error = urllib.error.HTTPError(
+                "https://example.com/nsfw",
+                503,
+                "Service Unavailable",
+                {"Retry-After": "1"},
+                None,
+            )
+            success_response = MagicMock()
+            success_response.__enter__ = MagicMock(return_value=success_response)
+            success_response.__exit__ = MagicMock(return_value=False)
+            success_response.read.return_value = json.dumps(
+                [{"label": "nsfw", "score": 0.1}]
+            ).encode()
+
+            mock_urlopen.side_effect = [http_error, success_response]
+
+            result = proc.check_nsfw()
+
+        assert result is False
 
 
 class TestCreatePaddedImage:
