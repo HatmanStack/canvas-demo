@@ -4,7 +4,7 @@ import gradio as gr
 
 from src.handlers.canvas_handlers import canvas_handlers
 from src.handlers.health import health_checker
-from src.models.config import config
+from src.models.config import get_config
 from src.utils.lambda_helpers import lambda_image_handler
 from src.utils.logger import app_logger
 
@@ -27,17 +27,17 @@ def create_advanced_options():
         max_lines=1
     )
     width = gr.Slider(
-        minimum=config.min_image_size,
-        maximum=config.max_image_size,
-        step=config.step_size,
-        value=config.default_size,
+        minimum=get_config().min_image_size,
+        maximum=get_config().max_image_size,
+        step=get_config().step_size,
+        value=get_config().default_size,
         label="Width"
     )
     height = gr.Slider(
-        minimum=config.min_image_size,
-        maximum=config.max_image_size,
-        step=config.step_size,
-        value=config.default_size,
+        minimum=get_config().min_image_size,
+        maximum=get_config().max_image_size,
+        step=get_config().step_size,
+        value=get_config().default_size,
         label="Height"
     )
     quality = gr.Radio(
@@ -49,14 +49,14 @@ def create_advanced_options():
         minimum=1.0,
         maximum=20.0,
         step=0.1,
-        value=config.default_cfg_scale,
+        value=get_config().default_cfg_scale,
         label="CFG Scale"
     )
     seed = gr.Slider(
         minimum=1,
         maximum=2000,
         step=1,
-        value=config.default_seed,
+        value=get_config().default_seed,
         label="Seed"
     )
 
@@ -370,13 +370,13 @@ if __name__ == "__main__":
     app_logger.info("Starting application launch sequence")
 
     # Clean up any old temporary files in Lambda environment
-    if config.is_lambda:
+    if get_config().is_lambda:
         lambda_image_handler.cleanup_temp_files(max_age_seconds=1800)  # 30 minutes
 
-        app_logger.info(f"Launching for Lambda on port {config.lambda_port}")
+        app_logger.info(f"Launching for Lambda on port {get_config().lambda_port}")
         demo.launch(
             server_name="0.0.0.0",
-            server_port=config.lambda_port,
+            server_port=get_config().lambda_port,
             show_error=True
         )
 

@@ -166,6 +166,14 @@ class TestRateLimitLogic:
         )
 
 
+def _mock_get_config(**overrides):
+    """Create a mock get_config that returns a MagicMock with given attributes."""
+    mock_cfg = MagicMock()
+    mock_cfg.rate_limit = overrides.get("rate_limit", 20)
+    mock_cfg.nova_image_bucket = overrides.get("nova_image_bucket", "test-bucket")
+    return mock_cfg
+
+
 class TestRateLimitExceeded:
     """Tests for rate limit exceeded scenarios."""
 
@@ -194,11 +202,12 @@ class TestRateLimitExceeded:
         body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
 
         with (
-            patch("src.services.rate_limiter.config") as mock_config,
+            patch(
+                "src.services.rate_limiter.get_config",
+                return_value=_mock_get_config(),
+            ),
             pytest.raises(RateLimitError),
         ):
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = "test-bucket"
             rl.check_rate_limit(body)
 
     def test_premium_request_costs_two(self, limiter_with_mock):
@@ -214,11 +223,12 @@ class TestRateLimitExceeded:
         body = json.dumps({"imageGenerationConfig": {"quality": "premium"}})
 
         with (
-            patch("src.services.rate_limiter.config") as mock_config,
+            patch(
+                "src.services.rate_limiter.get_config",
+                return_value=_mock_get_config(),
+            ),
             pytest.raises(RateLimitError),
         ):
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = "test-bucket"
             rl.check_rate_limit(body)
 
     def test_fail_open_on_generic_client_error(self, limiter_with_mock):
@@ -231,10 +241,11 @@ class TestRateLimitExceeded:
 
         body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = "test-bucket"
-            # Should not raise — fail open
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            # Should not raise - fail open
             rl.check_rate_limit(body)
 
 
@@ -263,9 +274,10 @@ class TestGetCurrentUsage:
             "Body": MagicMock(read=lambda: json.dumps(rate_data).encode())
         }
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = "test-bucket"
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
             usage = rl.get_current_usage()
 
         assert usage["premium_requests"] == 1
@@ -282,8 +294,10 @@ class TestGetCurrentUsage:
             "GetObject",
         )
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
             usage = rl.get_current_usage()
 
         assert usage["total_usage"] == 0
@@ -294,8 +308,10 @@ class TestGetCurrentUsage:
         rl, mock_cm = limiter_with_mock
         mock_cm.s3_client.get_object.side_effect = RuntimeError("boom")
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
             usage = rl.get_current_usage()
 
         assert usage["total_usage"] == 0

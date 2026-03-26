@@ -6,7 +6,7 @@ from typing import Final
 
 from botocore.exceptions import ClientError
 
-from src.models.config import config
+from src.models.config import get_config
 from src.services.aws_client import AWSClientManager
 from src.types.common import RateLimitData, RateLimitUsage
 from src.utils.exceptions import RateLimitError
@@ -85,7 +85,7 @@ class OptimizedRateLimiter:
             self._clean_old_entries(rate_data, current_time)
             total = self._calculate_total(rate_data)
 
-            if total + cost > config.rate_limit:
+            if total + cost > get_config().rate_limit:
                 return False
 
             if quality == "premium":
@@ -94,7 +94,7 @@ class OptimizedRateLimiter:
                 rate_data["standard"].append(current_time)
 
             self._put_rate_data(rate_data)
-            app_logger.debug(f"Rate check passed: {total + cost}/{config.rate_limit}")
+            app_logger.debug(f"Rate check passed: {total + cost}/{get_config().rate_limit}")
             return True
 
         except ClientError as e:
@@ -114,7 +114,7 @@ class OptimizedRateLimiter:
             ClientError: If S3 operation fails
         """
         response = self.client_manager.s3_client.get_object(
-            Bucket=config.nova_image_bucket,
+            Bucket=get_config().nova_image_bucket,
             Key=self.S3_KEY,
         )
 
@@ -131,7 +131,7 @@ class OptimizedRateLimiter:
     def _put_rate_data(self, rate_data: RateLimitData) -> None:
         """Write rate data to S3."""
         self.client_manager.s3_client.put_object(
-            Bucket=config.nova_image_bucket,
+            Bucket=get_config().nova_image_bucket,
             Key=self.S3_KEY,
             Body=json.dumps(rate_data),
             ContentType="application/json",
@@ -185,8 +185,8 @@ class OptimizedRateLimiter:
             "premium_requests": 0,
             "standard_requests": 0,
             "total_usage": 0,
-            "limit": config.rate_limit,
-            "remaining": config.rate_limit,
+            "limit": get_config().rate_limit,
+            "remaining": get_config().rate_limit,
         }
 
     def get_current_usage(self) -> RateLimitUsage:
@@ -204,8 +204,8 @@ class OptimizedRateLimiter:
                 "premium_requests": premium_count,
                 "standard_requests": standard_count,
                 "total_usage": total_requests,
-                "limit": config.rate_limit,
-                "remaining": max(0, config.rate_limit - total_requests),
+                "limit": get_config().rate_limit,
+                "remaining": max(0, get_config().rate_limit - total_requests),
             }
 
         except ClientError as e:

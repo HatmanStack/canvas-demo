@@ -200,11 +200,12 @@ class TestOptimizedImageProcessor:
         img = Image.new("RGB", (256, 256), color="red")
         proc = OptimizedImageProcessor(img)
 
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = True
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             with patch("src.services.image_processor._nsfw_cache") as mock_cache:
                 mock_cache.get.return_value = True
                 with pytest.raises(NSFWError):
@@ -265,11 +266,12 @@ class TestProcessAndEncodeImage:
     def test_returns_base64_string(self):
         """Returns a valid base64 string."""
         img = Image.new("RGB", (512, 512), color="red")
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = False
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             result = process_and_encode_image(img)
         assert isinstance(result, str)
         decoded = base64.b64decode(result)
@@ -278,10 +280,11 @@ class TestProcessAndEncodeImage:
     def test_handles_pil_image_input(self):
         """Handles PIL Image input directly."""
         img = Image.new("RGB", (256, 256), color="blue")
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = False
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             result = process_and_encode_image(img)
         assert isinstance(result, str)

@@ -13,7 +13,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from src.models.config import config
+from src.models.config import get_config
 from src.utils.exceptions import BedrockError, ConfigurationError
 from src.utils.logger import app_logger, log_performance
 
@@ -80,11 +80,11 @@ class AWSClientManager:
                     try:
                         AWSClientManager._bedrock_client = boto3.client(
                             service_name="bedrock-runtime",
-                            aws_access_key_id=config.aws_access_key_id,
-                            aws_secret_access_key=config.aws_secret_access_key,
+                            aws_access_key_id=get_config().aws_access_key_id,
+                            aws_secret_access_key=get_config().aws_secret_access_key,
                             region_name="us-east-1",  # Nova Canvas only available in us-east-1
                             config=Config(
-                                read_timeout=config.bedrock_timeout,
+                                read_timeout=get_config().bedrock_timeout,
                                 max_pool_connections=10,
                                 retries={"max_attempts": 3},
                             ),
@@ -106,9 +106,9 @@ class AWSClientManager:
                     try:
                         AWSClientManager._s3_client = boto3.client(
                             service_name="s3",
-                            aws_access_key_id=config.aws_access_key_id,
-                            aws_secret_access_key=config.aws_secret_access_key,
-                            region_name=config.bucket_region,
+                            aws_access_key_id=get_config().aws_access_key_id,
+                            aws_secret_access_key=get_config().aws_secret_access_key,
+                            region_name=get_config().bucket_region,
                             config=Config(max_pool_connections=5),
                         )
                         app_logger.info("S3 client initialized")
@@ -119,16 +119,16 @@ class AWSClientManager:
     @property
     def logs_client(self) -> "CloudWatchLogsClient | None":
         """Thread-safe lazy initialization of CloudWatch Logs client."""
-        if self._logs_client is None and config.is_lambda:
+        if self._logs_client is None and get_config().is_lambda:
             with self._client_lock:
                 # Double-check after acquiring lock
-                if self._logs_client is None and config.is_lambda:
+                if self._logs_client is None and get_config().is_lambda:
                     try:
                         AWSClientManager._logs_client = boto3.client(
                             service_name="logs",
-                            aws_access_key_id=config.aws_access_key_id,
-                            aws_secret_access_key=config.aws_secret_access_key,
-                            region_name=config.aws_region,
+                            aws_access_key_id=get_config().aws_access_key_id,
+                            aws_secret_access_key=get_config().aws_secret_access_key,
+                            region_name=get_config().aws_region,
                         )
                         app_logger.info("CloudWatch Logs client initialized")
                     except Exception as e:
@@ -171,7 +171,7 @@ class BedrockService:
 
             response = self.client_manager.bedrock_client.invoke_model(
                 body=body_bytes,
-                modelId=config.nova_canvas_model,
+                modelId=get_config().nova_canvas_model,
                 accept="application/json",
                 contentType="application/json",
             )
@@ -209,7 +209,7 @@ class BedrockService:
             app_logger.info("Calling Bedrock converse for prompt generation")
 
             response = self.client_manager.bedrock_client.converse(
-                modelId=config.nova_lite_model,
+                modelId=get_config().nova_lite_model,
                 messages=cast("list[MessageTypeDef]", messages),
             )
 
@@ -330,7 +330,7 @@ class BedrockService:
             # Store response body
             response_key = f"responses/{timestamp}_{unique_id}_response.json"
             self.client_manager.s3_client.put_object(
-                Bucket=config.nova_image_bucket,
+                Bucket=get_config().nova_image_bucket,
                 Key=response_key,
                 Body=request_body,
                 ContentType="application/json",
@@ -340,7 +340,7 @@ class BedrockService:
             if image_data:
                 image_key = f"images/{timestamp}_{unique_id}_image.png"
                 self.client_manager.s3_client.put_object(
-                    Bucket=config.nova_image_bucket,
+                    Bucket=get_config().nova_image_bucket,
                     Key=image_key,
                     Body=image_data,
                     ContentType="image/png",

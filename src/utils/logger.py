@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-from src.models.config import config
+from src.models.config import get_config
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -36,7 +36,7 @@ class OptimizedLogger:
     @property
     def cloudwatch_client(self) -> Any | None:
         """Lazy initialization of CloudWatch client via AWSClientManager."""
-        if self._cloudwatch_client is None and config.is_lambda:
+        if self._cloudwatch_client is None and get_config().is_lambda:
             from src.services.aws_client import AWSClientManager
 
             self._cloudwatch_client = AWSClientManager().logs_client
@@ -76,7 +76,7 @@ class OptimizedLogger:
         getattr(self.logger, level.lower())(message)
 
         # Batch CloudWatch logs in Lambda environment
-        if config.is_lambda and self.cloudwatch_client:
+        if get_config().is_lambda and self.cloudwatch_client:
             with self._batch_lock:
                 self.batch_logs.append(
                     {

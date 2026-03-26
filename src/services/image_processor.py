@@ -15,7 +15,7 @@ from PIL import Image
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-from src.models.config import config
+from src.models.config import get_config
 from src.utils.exceptions import ImageError, NSFWError
 from src.utils.logger import app_logger, log_performance
 
@@ -99,12 +99,12 @@ class OptimizedImageProcessor:
         Returns:
             True if content is NSFW, False otherwise
         """
-        if not config.enable_nsfw_check or not config.hf_token:
+        if not get_config().enable_nsfw_check or not get_config().hf_token:
             app_logger.debug("NSFW check skipped (disabled or no token)")
             return False
 
-        timeout = timeout or config.nsfw_timeout
-        max_retries = max_retries or config.nsfw_max_retries
+        timeout = timeout or get_config().nsfw_timeout
+        max_retries = max_retries or get_config().nsfw_max_retries
 
         # Prepare image data
         temp_buffer = io.BytesIO()
@@ -112,7 +112,7 @@ class OptimizedImageProcessor:
         temp_buffer.seek(0)
 
         headers = {
-            "Authorization": f"Bearer {config.hf_token}",
+            "Authorization": f"Bearer {get_config().hf_token}",
             "x-use-cache": "0",
             "Content-Type": "application/json",
         }
@@ -122,7 +122,7 @@ class OptimizedImageProcessor:
                 async with (
                     aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session,
                     session.post(
-                        config.nsfw_api_url,
+                        get_config().nsfw_api_url,
                         headers=headers,
                         data=temp_buffer.getvalue(),
                     ) as response,
@@ -206,7 +206,7 @@ class OptimizedImageProcessor:
         Returns:
             Self for method chaining
         """
-        max_pixels = max_pixels or config.max_pixels
+        max_pixels = max_pixels or get_config().max_pixels
         current_pixels = self.image.width * self.image.height
 
         if current_pixels <= max_pixels:
@@ -241,8 +241,8 @@ class OptimizedImageProcessor:
         Returns:
             Self for method chaining
         """
-        min_size = min_size or config.min_image_size
-        max_size = max_size or config.max_image_size
+        min_size = min_size or get_config().min_image_size
+        max_size = max_size or get_config().max_image_size
 
         width, height = self.image.size
 
@@ -305,7 +305,7 @@ class OptimizedImageProcessor:
         self._ensure_dimensions(kwargs.get("min_size"), kwargs.get("max_size"))
 
         # NSFW check if enabled, with content-addressable caching
-        if check_nsfw and config.enable_nsfw_check:
+        if check_nsfw and get_config().enable_nsfw_check:
             cached = _nsfw_cache.get(self.image)
             if cached is True:
                 raise NSFWError("Image flagged as inappropriate")

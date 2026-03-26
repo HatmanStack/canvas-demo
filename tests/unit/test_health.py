@@ -16,9 +16,10 @@ class TestHealthCheck:
         with (
             patch("src.handlers.health.AWSClientManager") as mock_manager,
             patch("src.handlers.health.rate_limiter") as mock_limiter,
-            patch("src.handlers.health.config") as mock_config,
+            patch("src.handlers.health.get_config") as mock_get_config,
         ):
             # Setup config mock
+            mock_config = mock_get_config.return_value
             mock_config.aws_access_key_id = "test-key"
             mock_config.aws_secret_access_key = "test-secret"
             mock_config.nova_image_bucket = "test-bucket"
