@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Final
+from typing import Any, Final
 
 from botocore.exceptions import ClientError
 
@@ -69,7 +69,7 @@ class OptimizedRateLimiter:
 
     def _check_and_increment(self, quality: str) -> bool:
         """
-        Check rate limit and increment counter.
+        Check rate limit and increment counter with optimistic locking.
 
         Args:
             quality: Request quality level ("standard" or "premium")
@@ -78,37 +78,51 @@ class OptimizedRateLimiter:
             True if request is allowed, False if rate limited
         """
         cost = 2 if quality == "premium" else 1
+        max_retries = 3
 
-        try:
-            rate_data = self._get_rate_data()
-            current_time = time.time()
-            self._clean_old_entries(rate_data, current_time)
-            total = self._calculate_total(rate_data)
+        for attempt in range(max_retries):
+            try:
+                rate_data, etag = self._get_rate_data()
+                current_time = time.time()
+                self._clean_old_entries(rate_data, current_time)
+                total = self._calculate_total(rate_data)
 
-            if total + cost > get_config().rate_limit:
-                return False
+                if total + cost > get_config().rate_limit:
+                    return False
 
-            if quality == "premium":
-                rate_data["premium"].append(current_time)
-            else:
-                rate_data["standard"].append(current_time)
+                if quality == "premium":
+                    rate_data["premium"].append(current_time)
+                else:
+                    rate_data["standard"].append(current_time)
 
-            self._put_rate_data(rate_data)
-            app_logger.debug(f"Rate check passed: {total + cost}/{get_config().rate_limit}")
-            return True
+                try:
+                    self._put_rate_data(rate_data, etag)
+                    app_logger.debug(f"Rate check passed: {total + cost}/{get_config().rate_limit}")
+                    return True
+                except ClientError as e:
+                    error_code = e.response.get("Error", {}).get("Code", "")
+                    if error_code == "PreconditionFailed" and attempt < max_retries - 1:
+                        app_logger.debug(
+                            f"Rate limit ETag conflict, retrying (attempt {attempt + 1})"
+                        )
+                        continue
+                    raise
 
-        except ClientError as e:
-            if e.response.get("Error", {}).get("Code") == "NoSuchKey":
-                return self._initialize_rate_data(quality)
-            app_logger.warning(f"Rate limit check failed: {e!s}")
-            return True  # Fail open
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+                    return self._initialize_rate_data(quality)
+                app_logger.warning(f"Rate limit check failed: {e!s}")
+                return True  # Fail open
 
-    def _get_rate_data(self) -> RateLimitData:
+        app_logger.warning("Rate limit check exhausted retries, allowing request")
+        return True  # Fail open after max retries
+
+    def _get_rate_data(self) -> tuple[RateLimitData, str]:
         """
-        Get rate data from S3.
+        Get rate data and ETag from S3.
 
         Returns:
-            Rate limit data dict
+            Tuple of (rate limit data dict, ETag string)
 
         Raises:
             ClientError: If S3 operation fails
@@ -118,6 +132,7 @@ class OptimizedRateLimiter:
             Key=self.S3_KEY,
         )
 
+        etag = response.get("ETag", "")
         body = response["Body"].read().decode("utf-8")
         rate_data: RateLimitData = json.loads(body)
 
@@ -126,16 +141,19 @@ class OptimizedRateLimiter:
         if "standard" not in rate_data:
             rate_data["standard"] = []
 
-        return rate_data
+        return rate_data, etag
 
-    def _put_rate_data(self, rate_data: RateLimitData) -> None:
-        """Write rate data to S3."""
-        self.client_manager.s3_client.put_object(
-            Bucket=get_config().nova_image_bucket,
-            Key=self.S3_KEY,
-            Body=json.dumps(rate_data),
-            ContentType="application/json",
-        )
+    def _put_rate_data(self, rate_data: RateLimitData, etag: str = "") -> None:
+        """Write rate data to S3 with optimistic locking."""
+        kwargs: dict[str, Any] = {
+            "Bucket": get_config().nova_image_bucket,
+            "Key": self.S3_KEY,
+            "Body": json.dumps(rate_data),
+            "ContentType": "application/json",
+        }
+        if etag:
+            kwargs["IfMatch"] = etag
+        self.client_manager.s3_client.put_object(**kwargs)
 
     def _initialize_rate_data(self, quality: str) -> bool:
         """
@@ -192,7 +210,7 @@ class OptimizedRateLimiter:
     def get_current_usage(self) -> RateLimitUsage:
         """Get current rate limit usage for monitoring."""
         try:
-            rate_data = self._get_rate_data()
+            rate_data, _etag = self._get_rate_data()
             current_time = time.time()
             self._clean_old_entries(rate_data, current_time)
 

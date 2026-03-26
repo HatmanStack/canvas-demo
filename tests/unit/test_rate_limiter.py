@@ -249,6 +249,123 @@ class TestRateLimitExceeded:
             rl.check_rate_limit(body)
 
 
+class TestETagOptimisticLocking:
+    """Tests for ETag-based optimistic locking in rate limiter."""
+
+    @pytest.fixture
+    def limiter_with_mock(self):
+        """Create a rate limiter with mocked AWS dependencies."""
+        with patch("src.services.rate_limiter.AWSClientManager") as mock_manager:
+            mock_instance = MagicMock()
+            mock_manager.return_value = mock_instance
+            from src.services.rate_limiter import OptimizedRateLimiter
+
+            rl = OptimizedRateLimiter()
+            rl.client_manager = mock_instance
+            yield rl, mock_instance
+
+    def test_put_uses_if_match_header(self, limiter_with_mock):
+        """_put_rate_data passes IfMatch when ETag is provided."""
+        rl, mock_cm = limiter_with_mock
+        rate_data = {"premium": [], "standard": [time.time()]}
+
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            rl._put_rate_data(rate_data, '"etag-123"')
+
+        call_kwargs = mock_cm.s3_client.put_object.call_args[1]
+        assert call_kwargs["IfMatch"] == '"etag-123"'
+
+    def test_put_skips_if_match_when_no_etag(self, limiter_with_mock):
+        """_put_rate_data omits IfMatch when ETag is empty."""
+        rl, mock_cm = limiter_with_mock
+        rate_data = {"premium": [], "standard": []}
+
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            rl._put_rate_data(rate_data, "")
+
+        call_kwargs = mock_cm.s3_client.put_object.call_args[1]
+        assert "IfMatch" not in call_kwargs
+
+    def test_precondition_failed_retries_and_succeeds(self, limiter_with_mock):
+        """PreconditionFailed on first put triggers retry that succeeds."""
+        rl, mock_cm = limiter_with_mock
+        rate_data = {"premium": [], "standard": []}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode()),
+            "ETag": '"etag-1"',
+        }
+
+        # First put fails with PreconditionFailed, second succeeds
+        mock_cm.s3_client.put_object.side_effect = [
+            ClientError(
+                {"Error": {"Code": "PreconditionFailed", "Message": ""}},
+                "PutObject",
+            ),
+            {},  # success on retry
+        ]
+
+        body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
+
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            rl.check_rate_limit(body)
+
+        assert mock_cm.s3_client.put_object.call_count == 2
+
+    def test_precondition_failed_exhausts_retries_fails_open(self, limiter_with_mock):
+        """PreconditionFailed on all retries allows request (fail open)."""
+        rl, mock_cm = limiter_with_mock
+        rate_data = {"premium": [], "standard": []}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode()),
+            "ETag": '"etag-1"',
+        }
+
+        # All puts fail
+        mock_cm.s3_client.put_object.side_effect = ClientError(
+            {"Error": {"Code": "PreconditionFailed", "Message": ""}},
+            "PutObject",
+        )
+
+        body = json.dumps({"imageGenerationConfig": {"quality": "standard"}})
+
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            # Should not raise (fail open after exhausting retries)
+            rl.check_rate_limit(body)
+
+    def test_get_rate_data_returns_etag(self, limiter_with_mock):
+        """_get_rate_data returns (data, etag) tuple."""
+        rl, mock_cm = limiter_with_mock
+        rate_data = {"premium": [], "standard": []}
+
+        mock_cm.s3_client.get_object.return_value = {
+            "Body": MagicMock(read=lambda: json.dumps(rate_data).encode()),
+            "ETag": '"abc-123"',
+        }
+
+        with patch(
+            "src.services.rate_limiter.get_config",
+            return_value=_mock_get_config(),
+        ):
+            data, etag = rl._get_rate_data()
+
+        assert data == rate_data
+        assert etag == '"abc-123"'
+
+
 class TestGetCurrentUsage:
     """Tests for get_current_usage."""
 
