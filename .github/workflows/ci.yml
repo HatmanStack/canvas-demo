@@ -131,6 +131,20 @@ jobs:
           LOCALSTACK_URL: http://localhost:4566
         run: pytest tests/integration/ -v -m integration
 
+  commit-lint:
+    name: Commit Messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        uses: webiny/action-conventional-commits@v1.3.0
+        with:
+          allowed-commit-types: "feat,fix,docs,test,chore,ci,refactor,style,build"
+
   all-checks:
     name: All Checks Pass
     runs-on: ubuntu-latest
