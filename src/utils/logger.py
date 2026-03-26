@@ -7,7 +7,10 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from mypy_boto3_logs import CloudWatchLogsClient
 
 from src.models.config import get_config
 
@@ -25,7 +28,7 @@ class OptimizedLogger:
         self.logger = logging.getLogger(__name__)
         self.log_group = log_group
         self.log_stream = "Canvas-Stream"
-        self._cloudwatch_client: Any | None = None
+        self._cloudwatch_client: CloudWatchLogsClient | None = None
         self._sequence_token: str | None = None
         self.batch_logs: list[dict[str, Any]] = []
         self.batch_size = 10
@@ -34,7 +37,7 @@ class OptimizedLogger:
         self._stream_created = False
 
     @property
-    def cloudwatch_client(self) -> Any | None:
+    def cloudwatch_client(self) -> "CloudWatchLogsClient | None":
         """Lazy initialization of CloudWatch client via AWSClientManager."""
         if self._cloudwatch_client is None and get_config().is_lambda:
             from src.services.aws_client import AWSClientManager
