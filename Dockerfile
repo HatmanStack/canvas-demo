@@ -1,11 +1,13 @@
-# Dockerfile
-
 FROM public.ecr.aws/docker/library/python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install dependencies using lock file for reproducibility
+COPY uv.lock pyproject.toml ./
+RUN uv sync --frozen --no-dev --no-editable
 
 COPY src/ src/
 COPY app.py seeds.json ./
