@@ -53,7 +53,9 @@ class AppConfig:
 
     def __init__(self, **kwargs: object) -> None:
         # Record which _ENV_OVERRIDE_FIELDS the caller actually passed
-        object.__setattr__(self, "_explicit_fields", frozenset(kwargs.keys()) & _ENV_OVERRIDE_FIELDS)
+        object.__setattr__(
+            self, "_explicit_fields", frozenset(kwargs.keys()) & _ENV_OVERRIDE_FIELDS
+        )
         # Apply dataclass defaults then overrides
         for f in fields(self):
             if f.name == "_explicit_fields":
