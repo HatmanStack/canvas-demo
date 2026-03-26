@@ -1,0 +1,18 @@
+# markdownlint configuration
+default: true
+
+# Allow long lines (common in markdown)
+MD013: false
+
+# Allow inline HTML (used in README badges)
+MD033: false
+
+# Allow duplicate headings in different sections
+MD024:
+  siblings_only: true
+
+# Allow trailing punctuation in headings
+MD026: false
+
+# Allow first line to not be a heading (README uses HTML div)
+MD041: false

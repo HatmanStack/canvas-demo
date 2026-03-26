@@ -2,14 +2,16 @@
 
 import contextlib
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
-from src.models.config import config
+if TYPE_CHECKING:
+    from mypy_boto3_logs import CloudWatchLogsClient
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -25,7 +27,7 @@ class OptimizedLogger:
         self.logger = logging.getLogger(__name__)
         self.log_group = log_group
         self.log_stream = "Canvas-Stream"
-        self._cloudwatch_client: Any | None = None
+        self._cloudwatch_client: CloudWatchLogsClient | None = None
         self._sequence_token: str | None = None
         self.batch_logs: list[dict[str, Any]] = []
         self.batch_size = 10
@@ -33,10 +35,15 @@ class OptimizedLogger:
         self.flush_interval = 30  # seconds
         self._stream_created = False
 
+    @staticmethod
+    def _is_lambda() -> bool:
+        """Check if running in Lambda without triggering config validation."""
+        return bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
     @property
-    def cloudwatch_client(self) -> Any | None:
+    def cloudwatch_client(self) -> "CloudWatchLogsClient | None":
         """Lazy initialization of CloudWatch client via AWSClientManager."""
-        if self._cloudwatch_client is None and config.is_lambda:
+        if self._cloudwatch_client is None and self._is_lambda():
             from src.services.aws_client import AWSClientManager
 
             self._cloudwatch_client = AWSClientManager().logs_client
@@ -68,20 +75,25 @@ class OptimizedLogger:
             except Exception as e:
                 self.logger.error(f"Failed to create log stream {self.log_stream}: {e}")
 
-    def log(self, message: str, level: str = "INFO") -> None:
+    _VALID_LEVELS: frozenset[str] = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
+    def log(self, message: str, level: str = "INFO", request_id: str = "") -> None:
         """Log message with optional CloudWatch batching."""
-        timestamp = datetime.now()
+        if level.upper() not in self._VALID_LEVELS:
+            level = "INFO"
+        prefix = f"[{request_id}] " if request_id else ""
+        timestamp = datetime.now(tz=UTC)
 
         # Always log to standard logger
-        getattr(self.logger, level.lower())(message)
+        getattr(self.logger, level.lower())(f"{prefix}{message}")
 
         # Batch CloudWatch logs in Lambda environment
-        if config.is_lambda and self.cloudwatch_client:
+        if self._is_lambda() and self.cloudwatch_client:
             with self._batch_lock:
                 self.batch_logs.append(
                     {
                         "timestamp": int(timestamp.timestamp() * 1000),
-                        "message": f"[{timestamp}] {message}",
+                        "message": f"[{timestamp}] {prefix}{message}",
                     }
                 )
 
@@ -115,21 +127,21 @@ class OptimizedLogger:
             except Exception as e:
                 self.logger.error(f"Failed to flush logs to CloudWatch: {e}")
 
-    def debug(self, message: str) -> None:
+    def debug(self, message: str, request_id: str = "") -> None:
         """Log at DEBUG level."""
-        self.log(message, "DEBUG")
+        self.log(message, "DEBUG", request_id=request_id)
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, request_id: str = "") -> None:
         """Log at INFO level."""
-        self.log(message, "INFO")
+        self.log(message, "INFO", request_id=request_id)
 
-    def warning(self, message: str) -> None:
+    def warning(self, message: str, request_id: str = "") -> None:
         """Log at WARNING level."""
-        self.log(message, "WARNING")
+        self.log(message, "WARNING", request_id=request_id)
 
-    def error(self, message: str) -> None:
+    def error(self, message: str, request_id: str = "") -> None:
         """Log at ERROR level."""
-        self.log(message, "ERROR")
+        self.log(message, "ERROR", request_id=request_id)
 
     def __del__(self) -> None:
         """Ensure logs are flushed on cleanup."""

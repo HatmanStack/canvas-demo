@@ -14,7 +14,7 @@ AWS Nova Canvas Image Generation
       <img src="https://img.shields.io/badge/AWS%20Nova%20Canvas-violet" alt="AWS Nova Canvas" />
     </a>
     <a href="https://gradio.app/">
-      <img src="https://img.shields.io/badge/Gradio%205.6.0-yellow" alt="Gradio" />
+      <img src="https://img.shields.io/badge/Gradio-yellow" alt="Gradio" />
     </a>
     <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python->=3.11-blue" alt="Python >= 3.11">
@@ -27,7 +27,6 @@ AWS Nova Canvas Image Generation
 
 An optimized, high-performance Gradio application for advanced image generation using AWS Nova Canvas. This refactored version provides comprehensive image manipulation capabilities with improved error handling, performance optimizations, and better monitoring.
 
-
 ## Capabilities
 
 - **Text to Image**: Generate images from text prompts
@@ -37,7 +36,6 @@ An optimized, high-performance Gradio application for advanced image generation 
 - **Image Conditioning**: Generate images based on input image and text
 - **Color Guided Content**: Create images using reference color palettes
 - **Background Removal**: Remove image backgrounds
-- **Health Monitoring**: Real-time system health and performance metrics
 
 ## Prerequisites
 
@@ -70,6 +68,7 @@ Copy `.env.example` to `.env` and fill in your values. See `.env.example` for al
 ## Running the Application
 
 ### Local Development
+
 ```bash
 make run
 # or
@@ -77,12 +76,14 @@ python app.py
 ```
 
 ### Docker Deployment
+
 ```bash
 docker build -t canvas-demo .
 docker run -p 8080:8080 --env-file .env canvas-demo
 ```
 
 ### AWS Lambda Deployment
+
 The application automatically detects Lambda environment and configures accordingly.
 
 ## Development
@@ -100,12 +101,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
 
 ## Monitoring & Health Checks
 
-### Health Check Endpoint
-Access `/health` for health status or use the "System Info" tab in the UI.
+Use the "System Info" tab in the UI for health status and performance metrics.
 
 ## Architecture
 
-```
+```text
 src/
 ├── models/          # Configuration and data models
 ├── services/        # Business logic and AWS integrations

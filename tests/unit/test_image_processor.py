@@ -2,7 +2,9 @@
 
 import base64
 import io
-from unittest.mock import patch
+import json
+import urllib.error
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image
@@ -74,6 +76,22 @@ class TestNSFWCache:
         cache.put(img1, True)
         # img2 has same content, should hit cache
         assert cache.get(img2) is True
+
+    def test_large_image_does_not_allocate_full_tobytes(self):
+        """Cache key for large image uses thumbnail, not full pixel data."""
+        cache = _NSFWCache(max_size=10)
+        img = Image.new("RGB", (2048, 2048), color="red")
+        # Should not raise or cause excessive memory allocation
+        cache.put(img, False)
+        assert cache.get(img) is False
+
+    def test_compute_key_consistency(self):
+        """Same image always produces the same cache key."""
+        cache = _NSFWCache(max_size=10)
+        img = Image.new("RGB", (100, 100), color="green")
+        key1 = cache._compute_key(img)
+        key2 = cache._compute_key(img)
+        assert key1 == key2
 
 
 class TestOptimizedImageProcessor:
@@ -188,7 +206,7 @@ class TestOptimizedImageProcessor:
         """Process runs convert -> resize -> ensure -> encode."""
         img = Image.new("RGBA", (3000, 3000), color=(255, 0, 0, 128))
         proc = OptimizedImageProcessor(img)
-        with patch.object(proc, "check_nsfw_sync", return_value=False):
+        with patch.object(proc, "check_nsfw", return_value=False):
             result = proc.process(check_nsfw=False)
         decoded = base64.b64decode(result)
         result_img = Image.open(io.BytesIO(decoded))
@@ -200,15 +218,140 @@ class TestOptimizedImageProcessor:
         img = Image.new("RGB", (256, 256), color="red")
         proc = OptimizedImageProcessor(img)
 
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = True
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             with patch("src.services.image_processor._nsfw_cache") as mock_cache:
                 mock_cache.get.return_value = True
                 with pytest.raises(NSFWError):
                     proc.process(check_nsfw=True)
+
+
+class TestCheckNsfw:
+    """Tests for synchronous NSFW check."""
+
+    def test_nsfw_check_skips_when_disabled(self):
+        """NSFW check returns None when disabled."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            result = proc.check_nsfw()
+
+        assert result is None
+
+    def test_nsfw_check_skips_when_no_token(self):
+        """NSFW check returns None when no HF token."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = ""
+            result = proc.check_nsfw()
+
+        assert result is None
+
+    def test_nsfw_check_returns_true_on_nsfw_content(self):
+        """NSFW check returns True when API reports nsfw score > 0.5."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        response_data = json.dumps([{"label": "nsfw", "score": 0.9}]).encode()
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 1
+
+            mock_response = MagicMock()
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.read.return_value = response_data
+            mock_urlopen.return_value = mock_response
+
+            result = proc.check_nsfw()
+
+        assert result is True
+
+    def test_nsfw_check_returns_false_on_safe_content(self):
+        """NSFW check returns False when nsfw score < 0.5."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        response_data = json.dumps([{"label": "nsfw", "score": 0.1}]).encode()
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 1
+
+            mock_response = MagicMock()
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.read.return_value = response_data
+            mock_urlopen.return_value = mock_response
+
+            result = proc.check_nsfw()
+
+        assert result is False
+
+    def test_nsfw_check_503_retry(self):
+        """NSFW check retries on 503 errors."""
+        img = Image.new("RGB", (256, 256), color="red")
+        proc = OptimizedImageProcessor(img)
+
+        with (
+            patch("src.services.image_processor.get_config") as mock_get_config,
+            patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
+            patch("src.services.image_processor.time.sleep") as mock_sleep,
+        ):
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = True
+            mock_cfg.hf_token = "test-token"
+            mock_cfg.nsfw_api_url = "https://example.com/nsfw"
+            mock_cfg.nsfw_timeout = 10
+            mock_cfg.nsfw_max_retries = 2
+
+            # First call: 503, second: success
+            http_error = urllib.error.HTTPError(
+                "https://example.com/nsfw",
+                503,
+                "Service Unavailable",
+                {"Retry-After": "1"},
+                None,
+            )
+            success_response = MagicMock()
+            success_response.__enter__ = MagicMock(return_value=success_response)
+            success_response.__exit__ = MagicMock(return_value=False)
+            success_response.read.return_value = json.dumps(
+                [{"label": "nsfw", "score": 0.1}]
+            ).encode()
+
+            mock_urlopen.side_effect = [http_error, success_response]
+
+            result = proc.check_nsfw()
+
+        assert result is False
+        mock_sleep.assert_called_once_with(1)
 
 
 class TestCreatePaddedImage:
@@ -265,11 +408,12 @@ class TestProcessAndEncodeImage:
     def test_returns_base64_string(self):
         """Returns a valid base64 string."""
         img = Image.new("RGB", (512, 512), color="red")
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = False
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             result = process_and_encode_image(img)
         assert isinstance(result, str)
         decoded = base64.b64decode(result)
@@ -278,10 +422,11 @@ class TestProcessAndEncodeImage:
     def test_handles_pil_image_input(self):
         """Handles PIL Image input directly."""
         img = Image.new("RGB", (256, 256), color="blue")
-        with patch("src.services.image_processor.config") as mock_config:
-            mock_config.enable_nsfw_check = False
-            mock_config.max_pixels = 4194304
-            mock_config.min_image_size = 256
-            mock_config.max_image_size = 2048
+        with patch("src.services.image_processor.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.enable_nsfw_check = False
+            mock_cfg.max_pixels = 4194304
+            mock_cfg.min_image_size = 256
+            mock_cfg.max_image_size = 2048
             result = process_and_encode_image(img)
         assert isinstance(result, str)

@@ -17,6 +17,16 @@ os.environ.setdefault("BUCKET_REGION", "us-west-2")
 os.environ.setdefault("NOVA_IMAGE_BUCKET", "test-bucket")
 
 
+@pytest.fixture(autouse=True)
+def _reset_config_between_tests():
+    """Reset config singleton between tests for isolation."""
+    from src.models.config import reset_config
+
+    reset_config()
+    yield
+    reset_config()
+
+
 @pytest.fixture
 def mock_config():
     """Mock application configuration for tests that need custom config values."""
@@ -33,11 +43,12 @@ def mock_config():
             "ENABLE_NSFW_CHECK": "false",
         },
     ):
-        # Import config after setting env vars
-        from src.models.config import AppConfig
+        from src.models.config import get_config, reset_config
 
-        mock = AppConfig()
+        reset_config()  # Clear cached config so it rebuilds from patched env
+        mock = get_config()
         yield mock
+        reset_config()  # Clean up after test
 
 
 @pytest.fixture

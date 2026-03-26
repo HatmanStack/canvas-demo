@@ -1,0 +1,4 @@
+# lychee configuration
+exclude = [
+    "https://t7bmxtdc6ojbkd3zgknxe32xdm0oqxkw.lambda-url.us-west-2.on.aws/",
+]

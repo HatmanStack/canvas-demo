@@ -13,17 +13,9 @@ from src.utils.exceptions import BedrockError
 @pytest.fixture(autouse=True)
 def reset_singleton():
     """Reset singleton state between tests."""
-    AWSClientManager._instance = None
-    AWSClientManager._bedrock_client = None
-    AWSClientManager._s3_client = None
-    AWSClientManager._logs_client = None
-    AWSClientManager._executor = None
+    AWSClientManager._reset()
     yield
-    AWSClientManager._instance = None
-    AWSClientManager._bedrock_client = None
-    AWSClientManager._s3_client = None
-    AWSClientManager._logs_client = None
-    AWSClientManager._executor = None
+    AWSClientManager._reset()
 
 
 @pytest.fixture
@@ -127,3 +119,47 @@ class TestStoreResponse:
 
         # Should not raise
         svc._store_response_sync('{"test": true}', b"image-data")
+
+
+class TestAWSClientManagerReset:
+    """Tests for AWSClientManager._reset() method."""
+
+    def test_reset_clears_all_state(self):
+        """After _reset(), all class-level state is None."""
+        AWSClientManager._reset()
+        assert AWSClientManager._instance is None
+        assert AWSClientManager._bedrock_client is None
+        assert AWSClientManager._s3_client is None
+        assert AWSClientManager._logs_client is None
+        assert AWSClientManager._executor is None
+
+    def test_reset_allows_new_instance(self):
+        """After _reset(), creating a new instance works."""
+        with patch("src.services.aws_client.get_config"):
+            mgr1 = AWSClientManager()
+            AWSClientManager._reset()
+            mgr2 = AWSClientManager()
+            assert mgr1 is not mgr2
+
+
+class TestLazyServiceAccessors:
+    """Tests for lazy get_*() accessor functions."""
+
+    def test_get_bedrock_service_returns_instance(self):
+        """get_bedrock_service() returns a BedrockService."""
+        from src.services.aws_client import get_bedrock_service, reset_bedrock_service
+
+        reset_bedrock_service()
+        with patch("src.services.aws_client.AWSClientManager"):
+            svc = get_bedrock_service()
+            assert isinstance(svc, BedrockService)
+
+    def test_get_bedrock_service_is_singleton(self):
+        """Calling get_bedrock_service() twice returns same object."""
+        from src.services.aws_client import get_bedrock_service, reset_bedrock_service
+
+        reset_bedrock_service()
+        with patch("src.services.aws_client.AWSClientManager"):
+            svc1 = get_bedrock_service()
+            svc2 = get_bedrock_service()
+            assert svc1 is svc2

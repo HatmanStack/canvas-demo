@@ -3,8 +3,8 @@
 import io
 import json
 import random
+import uuid
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -12,13 +12,13 @@ from typing import Any
 import gradio as gr
 from PIL import Image
 
-from src.services.aws_client import BedrockService, bedrock_service
+from src.services.aws_client import BedrockService, get_bedrock_service
 from src.services.image_processor import (
     create_padded_image,
     process_and_encode_image,
     process_composite_to_mask,
 )
-from src.services.rate_limiter import OptimizedRateLimiter, rate_limiter
+from src.services.rate_limiter import OptimizedRateLimiter, get_rate_limiter
 from src.types.common import (
     ControlMode,
     GradioImageMask,
@@ -59,14 +59,23 @@ def gradio_handler(operation: str) -> Callable[..., Any]:
     def decorator(func: Callable[..., GradioImageResult]) -> Callable[..., GradioImageResult]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> GradioImageResult:
+            request_id = uuid.uuid4().hex[:12]
+            app_logger.info(f"Starting {operation}", request_id=request_id)
+            from src.handlers.health import get_health_checker
+
+            get_health_checker().increment_request()
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                app_logger.info(f"Completed {operation}", request_id=request_id)
+                return result
             except (ImageError, NSFWError, RateLimitError) as e:
+                app_logger.warning(f"{operation}: {e.message}", request_id=request_id)
                 return None, gr.update(visible=True, value=e.message)
             except ValidationError as e:
+                app_logger.warning(f"{operation}: {e}", request_id=request_id)
                 return None, gr.update(visible=True, value=str(e))
             except Exception as e:
-                app_logger.error(f"{operation} error: {e!s}")
+                app_logger.error(f"{operation} error: {e!s}", request_id=request_id)
                 return None, gr.update(visible=True, value=f"{operation} failed. Please try again.")
 
         return wrapper
@@ -101,6 +110,9 @@ class CanvasHandlers:
             "BACKGROUND_REMOVAL": "backgroundRemovalParams",
         }
 
+        if task_type not in param_dict:
+            raise ValueError(f"Unknown task type: {task_type}")
+
         request_body = {
             "taskType": task_type,
             param_dict[task_type]: params,
@@ -126,7 +138,10 @@ class CanvasHandlers:
             return image, gr.update(value=None, visible=False)
         except Exception as e:
             app_logger.error(f"Failed to process image bytes: {e!s}")
-            return None, gr.update(visible=True, value=f"Failed to process image: {e!s}")
+            return None, gr.update(
+                visible=True,
+                value="Failed to process the generated image. Please try again.",
+            )
 
     def _validate_generation_params(
         self,
@@ -325,8 +340,7 @@ class CanvasHandlers:
         if not images:
             return None, gr.update(visible=True, value="Please provide at least one input image")
 
-        with ThreadPoolExecutor(max_workers=min(len(images), 5)) as pool:
-            encoded_images = list(pool.map(process_and_encode_image, images))
+        encoded_images = [process_and_encode_image(img) for img in images]
 
         image_variation_params: dict[str, Any] = {"images": encoded_images}
         if similarity_strength is not None:
@@ -472,7 +486,8 @@ class CanvasHandlers:
         app_logger.info("Starting prompt generation")
 
         try:
-            with Path("seeds.json").open() as file:
+            seeds_path = Path(__file__).resolve().parent.parent.parent / "seeds.json"
+            with seeds_path.open() as file:
                 data = json.load(file)
 
             if "seeds" not in data or not isinstance(data["seeds"], list):
@@ -506,5 +521,18 @@ class CanvasHandlers:
             return f"Error generating prompt: {e!s}"
 
 
-# Create global handlers instance with injected dependencies
-canvas_handlers = CanvasHandlers(bedrock_service, rate_limiter)
+_canvas_handlers: CanvasHandlers | None = None
+
+
+def get_canvas_handlers() -> CanvasHandlers:
+    """Get or create the CanvasHandlers singleton."""
+    global _canvas_handlers
+    if _canvas_handlers is None:
+        _canvas_handlers = CanvasHandlers(get_bedrock_service(), get_rate_limiter())
+    return _canvas_handlers
+
+
+def reset_canvas_handlers() -> None:
+    """Reset canvas handlers for testing. Not for production use."""
+    global _canvas_handlers
+    _canvas_handlers = None

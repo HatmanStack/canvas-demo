@@ -141,8 +141,6 @@ class MetricsInfo(TypedDict):
     """Performance metrics."""
 
     total_requests: int
-    total_errors: int
-    error_rate: float
     requests_per_second: float
     memory_info: MemoryInfo
 

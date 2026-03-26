@@ -1,11 +1,11 @@
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from src.models.config import config
+from src.models.config import get_config
 from src.services.aws_client import AWSClientManager
-from src.services.rate_limiter import rate_limiter
+from src.services.rate_limiter import get_rate_limiter
 from src.utils.logger import app_logger
 
 
@@ -17,17 +17,11 @@ class HealthCheck:
         self.start_time = time.time()
         self._counter_lock = threading.Lock()
         self.request_count = 0
-        self.error_count = 0
 
     def increment_request(self) -> None:
         """Increment request counter (thread-safe)."""
         with self._counter_lock:
             self.request_count += 1
-
-    def increment_error(self) -> None:
-        """Increment error counter (thread-safe)."""
-        with self._counter_lock:
-            self.error_count += 1
 
     def get_health_status(self) -> dict[str, Any]:
         """Get comprehensive health status"""
@@ -38,10 +32,10 @@ class HealthCheck:
             # Basic health info
             health_info = {
                 "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "uptime_seconds": round(uptime_seconds, 2),
                 "uptime_human": self._format_uptime(uptime_seconds),
-                "environment": "lambda" if config.is_lambda else "local",
+                "environment": "lambda" if get_config().is_lambda else "local",
                 "version": "2.0.0-optimized",
             }
 
@@ -54,15 +48,12 @@ class HealthCheck:
             health_info["metrics"] = metrics
 
             # Rate limiting status
-            rate_status = rate_limiter.get_current_usage()
+            rate_status = get_rate_limiter().get_current_usage()
             health_info["rate_limiting"] = rate_status
 
             # Overall health determination
             if any(service["status"] != "healthy" for service in services.values()):
                 health_info["status"] = "degraded"
-
-            if self.error_count / max(self.request_count, 1) > 0.1:  # 10% error rate
-                health_info["status"] = "unhealthy"
 
             return health_info
         except Exception:
@@ -94,7 +85,7 @@ class HealthCheck:
             return {
                 "status": "healthy",
                 "message": "Bedrock client initialized successfully",
-                "region": config.aws_region,
+                "region": get_config().aws_region,
             }
         except Exception as e:
             app_logger.error(f"Bedrock health check failed: {e!s}")
@@ -105,12 +96,12 @@ class HealthCheck:
         try:
             # Test S3 connectivity by checking bucket access
             client = self.client_manager.s3_client
-            client.head_bucket(Bucket=config.nova_image_bucket)
+            client.head_bucket(Bucket=get_config().nova_image_bucket)
             return {
                 "status": "healthy",
                 "message": "S3 bucket accessible",
-                "bucket": config.nova_image_bucket,
-                "region": config.bucket_region,
+                "bucket": get_config().nova_image_bucket,
+                "region": get_config().bucket_region,
             }
         except Exception as e:
             app_logger.error(f"S3 health check failed: {e!s}")
@@ -121,16 +112,16 @@ class HealthCheck:
         issues = []
 
         # Check required environment variables
-        if not config.aws_access_key_id:
+        if not get_config().aws_access_key_id:
             issues.append("Missing AWS_ACCESS_KEY_ID")
 
-        if not config.aws_secret_access_key:
+        if not get_config().aws_secret_access_key:
             issues.append("Missing AWS_SECRET_ACCESS_KEY")
 
-        if not config.nova_image_bucket:
+        if not get_config().nova_image_bucket:
             issues.append("Missing NOVA_IMAGE_BUCKET")
 
-        if config.enable_nsfw_check and not config.hf_token:
+        if get_config().enable_nsfw_check and not get_config().hf_token:
             issues.append("NSFW check enabled but HF_TOKEN missing")
 
         if issues:
@@ -149,8 +140,6 @@ class HealthCheck:
 
         return {
             "total_requests": self.request_count,
-            "total_errors": self.error_count,
-            "error_rate": round(self.error_count / max(self.request_count, 1), 4),
             "requests_per_second": round(self.request_count / max(uptime_seconds, 1), 4),
             "memory_info": self._get_memory_info(),
         }
@@ -190,8 +179,25 @@ class HealthCheck:
             full_status = self.get_health_status()
             return {"status": full_status["status"], "timestamp": full_status["timestamp"]}
         except Exception as e:
-            return {"status": "error", "message": str(e), "timestamp": datetime.now().isoformat()}
+            return {
+                "status": "error",
+                "message": str(e),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
+            }
 
 
-# Global health checker instance
-health_checker = HealthCheck()
+_health_checker: HealthCheck | None = None
+
+
+def get_health_checker() -> HealthCheck:
+    """Get or create the health checker singleton."""
+    global _health_checker
+    if _health_checker is None:
+        _health_checker = HealthCheck()
+    return _health_checker
+
+
+def reset_health_checker() -> None:
+    """Reset health checker for testing. Not for production use."""
+    global _health_checker
+    _health_checker = None

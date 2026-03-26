@@ -23,6 +23,7 @@ pre-commit install --hook-type commit-msg
 All commits must follow [Conventional Commits](https://www.conventionalcommits.org/). This is enforced by a pre-commit hook.
 
 Allowed prefixes:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation only
@@ -34,7 +35,8 @@ Allowed prefixes:
 - `build:` - Build system or dependency changes
 
 Examples:
-```
+
+```text
 feat: add image rotation support
 fix: handle empty mask in outpainting
 test: add rate limiter integration tests
@@ -57,6 +59,7 @@ make test-integration  # Run integration tests (requires LocalStack)
 ## Branch Protection (Recommended)
 
 Enable branch protection on `github-branch` in GitHub settings:
+
 - Require PR reviews before merging
 - Require all CI status checks to pass
 - Use squash-merge to keep history clean
