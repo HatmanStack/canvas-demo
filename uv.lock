@@ -247,16 +247,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3" },
+    { name = "boto3", specifier = ">=1.35.0" },
     { name = "boto3-stubs", extras = ["s3", "bedrock-runtime", "logs"], marker = "extra == 'dev'" },
-    { name = "gradio" },
+    { name = "gradio", specifier = ">=5.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
-    { name = "numpy" },
-    { name = "pillow", specifier = ">=11.1.0" },
-    { name = "psutil" },
+    { name = "numpy", specifier = ">=1.26.0" },
+    { name = "pillow", specifier = ">=12.1.0" },
+    { name = "psutil", specifier = ">=5.9.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "python-dotenv" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "types-pillow", marker = "extra == 'dev'" },
 ]

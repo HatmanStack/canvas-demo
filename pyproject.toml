@@ -4,12 +4,12 @@ version = "1.0.0"
 description = "AWS Bedrock Nova Canvas image generation demo"
 requires-python = ">=3.11"
 dependencies = [
-    "Pillow>=11.1.0",
-    "boto3",
-    "python-dotenv",
-    "gradio",
-    "psutil",
-    "numpy",
+    "Pillow>=12.1.0",
+    "boto3>=1.35.0",
+    "python-dotenv>=1.0.0",
+    "gradio>=5.0.0",
+    "psutil>=5.9.0",
+    "numpy>=1.26.0",
 ]
 
 [project.optional-dependencies]
