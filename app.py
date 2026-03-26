@@ -21,6 +21,7 @@ def append_color(current_colors: str, new_color: str) -> str:
 def create_advanced_options():
     """Create reusable advanced options components"""
     app_logger.debug("Creating advanced options UI components")
+    cfg = get_config()
 
     negative_text = gr.Textbox(
         label="Negative Prompt",
@@ -28,17 +29,17 @@ def create_advanced_options():
         max_lines=1
     )
     width = gr.Slider(
-        minimum=get_config().min_image_size,
-        maximum=get_config().max_image_size,
-        step=get_config().step_size,
-        value=get_config().default_size,
+        minimum=cfg.min_image_size,
+        maximum=cfg.max_image_size,
+        step=cfg.step_size,
+        value=cfg.default_size,
         label="Width"
     )
     height = gr.Slider(
-        minimum=get_config().min_image_size,
-        maximum=get_config().max_image_size,
-        step=get_config().step_size,
-        value=get_config().default_size,
+        minimum=cfg.min_image_size,
+        maximum=cfg.max_image_size,
+        step=cfg.step_size,
+        value=cfg.default_size,
         label="Height"
     )
     quality = gr.Radio(
@@ -50,14 +51,14 @@ def create_advanced_options():
         minimum=1.0,
         maximum=20.0,
         step=0.1,
-        value=get_config().default_cfg_scale,
+        value=cfg.default_cfg_scale,
         label="CFG Scale"
     )
     seed = gr.Slider(
         minimum=1,
         maximum=2000,
         step=1,
-        value=get_config().default_seed,
+        value=cfg.default_seed,
         label="Seed"
     )
 

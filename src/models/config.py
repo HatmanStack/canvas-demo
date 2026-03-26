@@ -52,6 +52,11 @@ class AppConfig:
         super().__init_subclass__(**kwargs)
 
     def __init__(self, **kwargs: object) -> None:
+        valid_fields = {f.name for f in fields(self) if f.name != "_explicit_fields"}
+        unexpected = set(kwargs) - valid_fields
+        if unexpected:
+            raise TypeError(f"Unexpected AppConfig field(s): {', '.join(sorted(unexpected))}")
+
         # Record which _ENV_OVERRIDE_FIELDS the caller actually passed
         object.__setattr__(
             self, "_explicit_fields", frozenset(kwargs.keys()) & _ENV_OVERRIDE_FIELDS
