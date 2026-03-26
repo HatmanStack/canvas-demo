@@ -27,7 +27,6 @@ AWS Nova Canvas Image Generation
 
 An optimized, high-performance Gradio application for advanced image generation using AWS Nova Canvas. This refactored version provides comprehensive image manipulation capabilities with improved error handling, performance optimizations, and better monitoring.
 
-
 ## Capabilities
 
 - **Text to Image**: Generate images from text prompts
@@ -69,6 +68,7 @@ Copy `.env.example` to `.env` and fill in your values. See `.env.example` for al
 ## Running the Application
 
 ### Local Development
+
 ```bash
 make run
 # or
@@ -76,12 +76,14 @@ python app.py
 ```
 
 ### Docker Deployment
+
 ```bash
 docker build -t canvas-demo .
 docker run -p 8080:8080 --env-file .env canvas-demo
 ```
 
 ### AWS Lambda Deployment
+
 The application automatically detects Lambda environment and configures accordingly.
 
 ## Development
@@ -103,7 +105,7 @@ Use the "System Info" tab in the UI for health status and performance metrics.
 
 ## Architecture
 
-```
+```text
 src/
 ├── models/          # Configuration and data models
 ├── services/        # Business logic and AWS integrations
