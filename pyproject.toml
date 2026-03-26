@@ -83,12 +83,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-# boto3 client properties use double-checked locking with class-level Optional fields;
-# mypy cannot prove the field is non-None after initialization + raise
-[[tool.mypy.overrides]]
-module = ["src.services.aws_client"]
-disable_error_code = ["return-value"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

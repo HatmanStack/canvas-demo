@@ -73,7 +73,7 @@ class AWSClientManager:
     @classmethod
     def _reset(cls) -> None:
         """Reset singleton state for testing. Not for production use."""
-        with cls._lock:
+        with cls._lock, cls._client_lock:
             if cls._executor is not None:
                 cls._executor.shutdown(wait=False)
             cls._instance = None
@@ -106,6 +106,7 @@ class AWSClientManager:
                         raise ConfigurationError(
                             f"Failed to initialize Bedrock client: {e!s}"
                         ) from e
+        assert self._bedrock_client is not None
         return self._bedrock_client
 
     @property
@@ -126,6 +127,7 @@ class AWSClientManager:
                         app_logger.info("S3 client initialized")
                     except Exception as e:
                         raise ConfigurationError(f"Failed to initialize S3 client: {e!s}") from e
+        assert self._s3_client is not None
         return self._s3_client
 
     @property

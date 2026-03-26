@@ -56,7 +56,7 @@ _nsfw_cache = _NSFWCache()
 
 
 class OptimizedImageProcessor:
-    """Optimized image processor with async NSFW checking and efficient operations."""
+    """Optimized image processor with synchronous NSFW checking and efficient operations."""
 
     def __init__(self, image: str | Image.Image | io.IOBase) -> None:
         """

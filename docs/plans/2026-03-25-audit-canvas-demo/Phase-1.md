@@ -47,7 +47,7 @@ Remove dead code, unused imports, and fix trivial bugs that require no architect
 - No new tests needed (removing dead code)
 
 **Commit Message Template:**
-```
+```text
 refactor(lambda-helpers): remove unused process_image_for_lambda and create_data_url
 
 - Both methods flagged as dead code by vulture (90% confidence)
@@ -87,7 +87,7 @@ refactor(lambda-helpers): remove unused process_image_for_lambda and create_data
 - Existing tests confirm no runtime breakage
 
 **Commit Message Template:**
-```
+```text
 refactor(aws-client): remove unused TYPE_CHECKING imports
 
 - Pruned imports not referenced in type annotations
@@ -121,7 +121,7 @@ refactor(aws-client): remove unused TYPE_CHECKING imports
 - Consider adding a test that verifies the path resolves to an existing file (optional, low priority)
 
 **Commit Message Template:**
-```
+```text
 fix(handlers): resolve seeds.json path relative to module file
 
 - Prevents FileNotFoundError when CWD differs from project root
@@ -150,7 +150,7 @@ fix(handlers): resolve seeds.json path relative to module file
 - No tests needed (removing dead code)
 
 **Commit Message Template:**
-```
+```text
 refactor(app): remove dead health_endpoint function
 
 - Function was never registered as a route
@@ -189,7 +189,7 @@ def append_color(current_colors: str, new_color: str) -> str:
 - No automated test needed for UI wiring
 
 **Commit Message Template:**
-```
+```text
 fix(app): wire color_picker to colors textbox in Color Guided tab
 
 - ColorPicker change event now appends selected color to the colors input
@@ -232,7 +232,7 @@ fix(app): wire color_picker to colors textbox in Color Guided tab
 - No new tests needed for key format
 
 **Commit Message Template:**
-```
+```text
 fix(aws-client): add UUID suffix to S3 storage keys
 
 - Prevents key collisions under concurrent Lambda invocations
@@ -268,7 +268,7 @@ fix(aws-client): add UUID suffix to S3 storage keys
 - Verify `get_health_status` still returns valid structure
 
 **Commit Message Template:**
-```
+```text
 refactor(health): remove unused increment_error and error_count
 
 - increment_error was never called, making error rate always 0%

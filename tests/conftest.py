@@ -45,9 +45,10 @@ def mock_config():
     ):
         from src.models.config import get_config, reset_config
 
-        reset_config()
+        reset_config()  # Clear cached config so it rebuilds from patched env
         mock = get_config()
         yield mock
+        reset_config()  # Clean up after test
 
 
 @pytest.fixture

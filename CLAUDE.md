@@ -27,6 +27,12 @@ ruff check --fix src/ tests/        # auto-fix lint issues
 ### Type check
 
 ```bash
+mypy src/
+```
+
+For local checks with relaxed settings:
+
+```bash
 mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
 ```
 
@@ -67,12 +73,12 @@ python app.py
 
 ## CI
 
-GitHub Actions on push/PR to `github-branch`: lint (ruff) → type check (mypy) → test (pytest, 75% coverage minimum). All four must pass (includes integration tests).
+GitHub Actions on push/PR to `github-branch`: lint (ruff), type check (mypy), test (pytest with `-m "not integration"`, 75% coverage minimum), and integration test (LocalStack) run as parallel jobs. Link checking (lychee) and commit message linting (conventional commits, PR-only) also run. The `all-checks` gate requires all jobs to pass.
 
 ## Key Constraints
 
 - **Python >=3.11**, CI runs on 3.11
 - **Ruff**: line length 100, strict rule set (see `pyproject.toml [tool.ruff.lint]`)
 - **Coverage**: 75% minimum (`--cov-fail-under=75`)
-- **Image limits**: 256–2048px per dimension, 4MP max total
+- **Image limits**: 256-2048px per dimension, dimensions must be multiples of 64, max aspect ratio 4:1, 4MP (4,194,304 pixels) total cap
 - **Bedrock model**: `amazon.nova-canvas-v1:0` (us-east-1 only)

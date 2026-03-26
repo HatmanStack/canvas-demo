@@ -81,9 +81,10 @@ class TestRateLimiterIntegration:
 
         limiter = self._make_limiter(s3_client)
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = s3_bucket
+        with patch("src.services.rate_limiter.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.rate_limit = 20
+            mock_cfg.nova_image_bucket = s3_bucket
             usage = limiter.get_current_usage()
 
         # Expired premium entry should have been cleaned
@@ -109,9 +110,10 @@ class TestRateLimiterIntegration:
 
         limiter = self._make_limiter(s3_client)
 
-        with patch("src.services.rate_limiter.config") as mock_config:
-            mock_config.rate_limit = 20
-            mock_config.nova_image_bucket = s3_bucket
+        with patch("src.services.rate_limiter.get_config") as mock_get_config:
+            mock_cfg = mock_get_config.return_value
+            mock_cfg.rate_limit = 20
+            mock_cfg.nova_image_bucket = s3_bucket
             usage = limiter.get_current_usage()
 
         assert usage["premium_requests"] == 1

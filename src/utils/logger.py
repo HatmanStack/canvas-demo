@@ -2,6 +2,7 @@
 
 import contextlib
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -11,8 +12,6 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from mypy_boto3_logs import CloudWatchLogsClient
-
-from src.models.config import get_config
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -36,10 +35,15 @@ class OptimizedLogger:
         self.flush_interval = 30  # seconds
         self._stream_created = False
 
+    @staticmethod
+    def _is_lambda() -> bool:
+        """Check if running in Lambda without triggering config validation."""
+        return bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
     @property
     def cloudwatch_client(self) -> "CloudWatchLogsClient | None":
         """Lazy initialization of CloudWatch client via AWSClientManager."""
-        if self._cloudwatch_client is None and get_config().is_lambda:
+        if self._cloudwatch_client is None and self._is_lambda():
             from src.services.aws_client import AWSClientManager
 
             self._cloudwatch_client = AWSClientManager().logs_client
@@ -84,7 +88,7 @@ class OptimizedLogger:
         getattr(self.logger, level.lower())(f"{prefix}{message}")
 
         # Batch CloudWatch logs in Lambda environment
-        if get_config().is_lambda and self.cloudwatch_client:
+        if self._is_lambda() and self.cloudwatch_client:
             with self._batch_lock:
                 self.batch_logs.append(
                     {

@@ -1,6 +1,7 @@
 """Unit tests for OptimizedLogger."""
 
 import logging
+import re
 
 from src.utils.logger import OptimizedLogger
 
@@ -23,7 +24,7 @@ class TestLoggerRequestId:
         with caplog.at_level(logging.INFO):
             logger.log("test message", level="INFO")
 
-        assert "[" not in caplog.text
+        assert re.search(r"^\[[^\]]+\]\s", caplog.text, flags=re.M) is None
         assert "test message" in caplog.text
 
     def test_convenience_methods_accept_request_id(self, caplog):

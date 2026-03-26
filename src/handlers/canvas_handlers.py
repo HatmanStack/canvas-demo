@@ -61,6 +61,9 @@ def gradio_handler(operation: str) -> Callable[..., Any]:
         def wrapper(*args: Any, **kwargs: Any) -> GradioImageResult:
             request_id = uuid.uuid4().hex[:12]
             app_logger.info(f"Starting {operation}", request_id=request_id)
+            from src.handlers.health import get_health_checker
+
+            get_health_checker().increment_request()
             try:
                 result = func(*args, **kwargs)
                 app_logger.info(f"Completed {operation}", request_id=request_id)

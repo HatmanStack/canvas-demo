@@ -29,7 +29,7 @@
 | Config factory instead of import-time `os.getenv` | VERIFIED | `config.py` uses `get_config()` factory (line 95) with lazy singleton. `__post_init__` reads env vars at instantiation (line 46 comment). No module-level `config = AppConfig()`. `reset_config()` available for tests. |
 | Singleton test reset (`aws_client.py`) | VERIFIED | `AWSClientManager._reset()` method (line 74) clears all class-level state. `tests/unit/conftest.py` calls `_reset()` after each test via autouse fixture. |
 | NSFW async/sync dance removed | VERIFIED | `image_processor.py` uses synchronous `urllib.request` (lines 116-130) instead of `aiohttp`. No `asyncio.run()` or `asyncio.new_event_loop()` anywhere in the file. |
-| `_cloudwatch_client: Any` replaced with proper type | VERIFIED | `logger.py:31` declares `_cloudwatch_client: CloudWatchLogsClient | None` with `CloudWatchLogsClient` imported under `TYPE_CHECKING` (line 13). |
+| `_cloudwatch_client: Any` replaced with proper type | VERIFIED | `logger.py:31` declares `_cloudwatch_client: CloudWatchLogsClient \| None` with `CloudWatchLogsClient` imported under `TYPE_CHECKING` (line 13). |
 | mypy without escape hatches in CI | VERIFIED | `ci.yml:57` runs `mypy src/` without `--ignore-missing-imports`, `--no-strict-optional`, or `--allow-untyped-defs`. `pyproject.toml` strict settings apply. Per-package overrides for gradio/PIL/numpy/psutil handle missing stubs. |
 | Commit-message lint in CI | VERIFIED | `ci.yml:145-157` adds `commit-lint` job using `webiny/action-conventional-commits@v1.3.0`, runs on PRs only. |
 | Logger `level` validation | VERIFIED | `logger.py:74` defines `_VALID_LEVELS` frozenset. Line 78 falls back to `"INFO"` if level not in set. Test `test_invalid_level_falls_back_to_info` confirms. |
@@ -116,13 +116,15 @@ These findings from the health audit were not included in remediation targets an
 - Health-audit #10: Potentially unused TYPE_CHECKING imports
 - Health-audit #11: `app.py` import-time side effects (Gradio UI construction)
 - Health-audit #14: 300s Bedrock timeout behind API Gateway
-- Health-audit #16: Per-call ThreadPoolExecutor in `image_variation`
-- Health-audit #17: Unused methods in `lambda_helpers.py` (partially addressed: `process_image_for_lambda` and `create_data_url` were removed)
-- Health-audit #20: `color_picker` not wired to handler
-- Health-audit #21: `health_endpoint()` dead code
-- Health-audit #22: `increment_error()` never called
-- Health-audit #23: S3 key collision (VERIFIED fixed: UUID suffix added at `aws_client.py:340`)
 - Health-audit #24: pygments CVE (dependency-level, not directly addressable)
+
+Resolved during remediation (no longer outstanding):
+- Health-audit #16: Per-call ThreadPoolExecutor in `image_variation` (removed in Phase 2)
+- Health-audit #17: Unused methods in `lambda_helpers.py` (removed in Phase 1)
+- Health-audit #20: `color_picker` not wired to handler (wired in Phase 1)
+- Health-audit #21: `health_endpoint()` dead code (removed in Phase 1)
+- Health-audit #22: `increment_error()` never called (removed in Phase 1)
+- Health-audit #23: S3 key collision (fixed with UUID suffix in Phase 1)
 
 ### Verdict
 

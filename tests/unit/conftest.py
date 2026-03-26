@@ -7,8 +7,9 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture(autouse=True)
 def reset_aws_clients():
-    """Reset AWS singleton between tests to prevent state leakage."""
-    yield
+    """Reset AWS singleton before and after tests to prevent state leakage."""
     from src.services.aws_client import AWSClientManager
 
+    AWSClientManager._reset()
+    yield
     AWSClientManager._reset()

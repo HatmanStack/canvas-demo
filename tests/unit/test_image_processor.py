@@ -322,7 +322,7 @@ class TestCheckNsfw:
         with (
             patch("src.services.image_processor.get_config") as mock_get_config,
             patch("src.services.image_processor.urllib.request.urlopen") as mock_urlopen,
-            patch("src.services.image_processor.time.sleep"),
+            patch("src.services.image_processor.time.sleep") as mock_sleep,
         ):
             mock_cfg = mock_get_config.return_value
             mock_cfg.enable_nsfw_check = True
@@ -351,6 +351,7 @@ class TestCheckNsfw:
             result = proc.check_nsfw()
 
         assert result is False
+        mock_sleep.assert_called_once_with(1)
 
 
 class TestCreatePaddedImage:

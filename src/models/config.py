@@ -66,14 +66,20 @@ class AppConfig:
         if not self.log_level:
             self.log_level = os.getenv("LOG_LEVEL", "INFO")
 
-        self.enable_nsfw_check = os.getenv("ENABLE_NSFW_CHECK", "true").lower() == "true"
-        self.rate_limit = int(os.getenv("RATE_LIMIT", "20"))
+        # Only override from env if the caller didn't pass explicit values
+        # (i.e., value still matches the dataclass default)
+        if self.enable_nsfw_check is True:
+            self.enable_nsfw_check = os.getenv("ENABLE_NSFW_CHECK", "true").lower() == "true"
+        if self.rate_limit == 20:
+            self.rate_limit = int(os.getenv("RATE_LIMIT", "20"))
 
         if not self.hf_token:
             self.hf_token = os.getenv("HF_TOKEN", "")
 
-        self.is_lambda = "AWS_LAMBDA_FUNCTION_NAME" in os.environ
-        self.lambda_port = int(os.getenv("AWS_LAMBDA_HTTP_PORT", "8080"))
+        if self.is_lambda is False:
+            self.is_lambda = "AWS_LAMBDA_FUNCTION_NAME" in os.environ
+        if self.lambda_port == 8080:
+            self.lambda_port = int(os.getenv("AWS_LAMBDA_HTTP_PORT", "8080"))
 
         # Validation
         if not self.aws_access_key_id or not self.aws_secret_access_key:

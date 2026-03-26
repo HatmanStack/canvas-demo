@@ -506,7 +506,7 @@ After completing all tasks:
 
 1. `ruff check src/ tests/ && ruff format --check src/ tests/`
 2. `pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=75 -m "not integration"`
-3. `mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs`
+3. `mypy src/`
 4. Verify `bedrock_service`, `rate_limiter`, `health_checker`, and `canvas_handlers` are no longer instantiated at module level in `src/`
 5. Verify `aiohttp` is not in dependencies
 

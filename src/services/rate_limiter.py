@@ -162,29 +162,43 @@ class OptimizedRateLimiter:
 
     def _initialize_rate_data(self, quality: str) -> bool:
         """
-        Initialize rate data file for first request.
+        Initialize rate data file for first request using conditional write.
+
+        Uses If-None-Match to prevent concurrent creators from overwriting
+        each other. If the conditional write fails (object already exists),
+        retries through the normal optimistic-locking read-modify-write flow.
 
         Args:
             quality: Quality level of the first request
 
         Returns:
-            True (first request is always allowed)
+            True if request is allowed, False if rate limited
         """
-        try:
-            rate_data: RateLimitData = {
-                "premium": [],
-                "standard": [],
-            }
-            if quality == "premium":
-                rate_data["premium"].append(time.time())
-            else:
-                rate_data["standard"].append(time.time())
+        rate_data: RateLimitData = {
+            "premium": [],
+            "standard": [],
+        }
+        if quality == "premium":
+            rate_data["premium"].append(time.time())
+        else:
+            rate_data["standard"].append(time.time())
 
-            self._put_rate_data(rate_data)
+        try:
+            self.client_manager.s3_client.put_object(
+                Bucket=get_config().nova_image_bucket,
+                Key=self.S3_KEY,
+                Body=json.dumps(rate_data),
+                ContentType="application/json",
+                IfNoneMatch="*",
+            )
             app_logger.info("Initialized rate limit data in S3")
             return True
-
-        except Exception as e:
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in ("PreconditionFailed", "ConditionalCheckFailedException"):
+                # Another invocation created it first; retry through normal flow
+                app_logger.debug("Race on rate data init, retrying via optimistic lock")
+                return self._check_and_increment(quality)
             app_logger.warning(f"Failed to initialize rate data: {e!s}")
             return True  # Fail open
 

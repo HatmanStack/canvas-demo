@@ -61,27 +61,27 @@ class TestConfigFactory:
         from src.models.config import reset_config
 
         reset_config()
-        with patch.dict(
-            os.environ,
-            {
-                "AWS_ACCESS_KEY_ID": "",
-                "AWS_SECRET_ACCESS_KEY": "",
-                "AMP_AWS_ID": "",
-                "AMP_AWS_SECRET": "",
-                "AWS_ID": "",
-                "AWS_SECRET": "",
-                "NOVA_IMAGE_BUCKET": "test-bucket",
-            },
-            clear=False,
-        ):
-            from src.models.config import get_config
-            from src.models.config import reset_config as rc2
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "AWS_ACCESS_KEY_ID": "",
+                    "AWS_SECRET_ACCESS_KEY": "",
+                    "AMP_AWS_ID": "",
+                    "AMP_AWS_SECRET": "",
+                    "AWS_ID": "",
+                    "AWS_SECRET": "",
+                    "NOVA_IMAGE_BUCKET": "test-bucket",
+                },
+                clear=False,
+            ):
+                from src.models.config import get_config
+                from src.models.config import reset_config as rc2
 
-            rc2()
-            from src.utils.exceptions import ConfigurationError
+                rc2()
+                from src.utils.exceptions import ConfigurationError
 
-            with pytest.raises(ConfigurationError, match="AWS credentials"):
-                get_config()
-
-        # Restore valid state
-        reset_config()
+                with pytest.raises(ConfigurationError, match="AWS credentials"):
+                    get_config()
+        finally:
+            reset_config()

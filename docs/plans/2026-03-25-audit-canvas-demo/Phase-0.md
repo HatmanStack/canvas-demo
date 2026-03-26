@@ -40,7 +40,7 @@ This phase defines architecture decisions, conventions, and testing strategy tha
 
 All commits use conventional commits:
 
-```
+```text
 type(scope): description
 
 - detail 1

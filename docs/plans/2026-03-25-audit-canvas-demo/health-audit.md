@@ -113,9 +113,9 @@ goal: general-health-check
     - **The Debt:** `health_endpoint()` function is defined but never registered as an endpoint. Gradio does not automatically expose it; it would need to be mounted as an API route.
     - **The Risk:** Dead code. The health check is only accessible through the "System Info" Gradio tab, not as a proper HTTP endpoint for load balancers or monitoring.
 
-22. **[Code Hygiene Debt]** `src/handlers/health.py:27`
-    - **The Debt:** `increment_error()` is defined on `HealthCheck` but never called anywhere in the codebase. The `error_count` stays at 0 forever, making the error rate calculation on line 64 always yield 0.
-    - **The Risk:** The health status error rate metric is meaningless; it always reports 0% errors regardless of actual failures.
+22. **[Code Hygiene Debt]** `src/handlers/health.py:27` — **RESOLVED**
+    - **The Debt:** `increment_error()` was defined on `HealthCheck` but never called. The `error_count` and `error_rate` metrics were always 0.
+    - **Resolution:** `increment_error()` and `error_count` were removed in Phase 1. The `error_rate` field was removed from `MetricsInfo` TypedDict.
 
 23. **[Operational Debt]** `src/services/aws_client.py:326`
     - **The Debt:** S3 object keys use `datetime.now().strftime("%Y%m%d_%H%M%S_%f")` as the sole identifier. Under concurrent Lambda invocations, two requests processed in the same microsecond would overwrite each other's S3 objects.
