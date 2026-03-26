@@ -374,6 +374,17 @@ class TestCanvasHandlers:
         result = handlers.update_mask_editor({})
         assert result is None
 
+    def test_process_response_invalid_bytes_returns_generic_error(self, handlers):
+        """Test _process_response with invalid bytes returns generic error, not exception details."""
+        image, update = handlers._process_response(b"not a valid image")
+
+        assert image is None
+        assert update["visible"] is True
+        assert "Failed to process the generated image" in update["value"]
+        # Must NOT contain internal exception details
+        assert "cannot identify" not in update["value"].lower()
+        assert "error" not in update["value"].lower()
+
     def test_gradio_handler_generates_request_id(self, handlers, mock_bedrock, img_bytes, caplog):
         """Test that gradio_handler generates a unique request ID in log messages."""
         mock_bedrock.generate_image.return_value = img_bytes

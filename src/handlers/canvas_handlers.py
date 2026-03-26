@@ -132,7 +132,10 @@ class CanvasHandlers:
             return image, gr.update(value=None, visible=False)
         except Exception as e:
             app_logger.error(f"Failed to process image bytes: {e!s}")
-            return None, gr.update(visible=True, value=f"Failed to process image: {e!s}")
+            return None, gr.update(
+                visible=True,
+                value="Failed to process the generated image. Please try again.",
+            )
 
     def _validate_generation_params(
         self,
