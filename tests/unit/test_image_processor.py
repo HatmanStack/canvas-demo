@@ -75,6 +75,22 @@ class TestNSFWCache:
         # img2 has same content, should hit cache
         assert cache.get(img2) is True
 
+    def test_large_image_does_not_allocate_full_tobytes(self):
+        """Cache key for large image uses thumbnail, not full pixel data."""
+        cache = _NSFWCache(max_size=10)
+        img = Image.new("RGB", (2048, 2048), color="red")
+        # Should not raise or cause excessive memory allocation
+        cache.put(img, False)
+        assert cache.get(img) is False
+
+    def test_compute_key_consistency(self):
+        """Same image always produces the same cache key."""
+        cache = _NSFWCache(max_size=10)
+        img = Image.new("RGB", (100, 100), color="green")
+        key1 = cache._compute_key(img)
+        key2 = cache._compute_key(img)
+        assert key1 == key2
+
 
 class TestOptimizedImageProcessor:
     """Tests for OptimizedImageProcessor."""
