@@ -1,0 +1,8 @@
+[
+  {
+    "skill": "audit",
+    "date": "2026-03-25",
+    "plan": "2026-03-25-audit-canvas-demo",
+    "audits": ["health", "eval", "docs"]
+  }
+]
