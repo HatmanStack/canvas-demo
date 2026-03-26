@@ -63,9 +63,10 @@ class OptimizedRateLimiter:
         except RateLimitError:
             raise
         except Exception as e:
-            app_logger.error(f"Rate limiting error: {e!s}")
-            # Fail open - allow request if rate limiting system fails
-            app_logger.warning("Rate limit check failed, allowing request")
+            app_logger.error(
+                f"Rate limiter fail-open: {type(e).__name__}: {e!s}. "
+                "Request allowed despite rate limit check failure."
+            )
 
     def _check_and_increment(self, quality: str) -> bool:
         """
@@ -111,7 +112,11 @@ class OptimizedRateLimiter:
             except ClientError as e:
                 if e.response.get("Error", {}).get("Code") == "NoSuchKey":
                     return self._initialize_rate_data(quality)
-                app_logger.warning(f"Rate limit check failed: {e!s}")
+                app_logger.warning(
+                    f"Rate limit S3 error (fail-open): "
+                    f"{e.response.get('Error', {}).get('Code', 'unknown')}. "
+                    "Request allowed."
+                )
                 return True  # Fail open
 
         app_logger.warning("Rate limit check exhausted retries, allowing request")
