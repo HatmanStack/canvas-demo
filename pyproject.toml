@@ -56,6 +56,9 @@ known-first-party = ["src"]
 "tests/**/*.py" = [
     "S101",   # assert allowed in tests
 ]
+"app.py" = [
+    "SIM117", # nested `with` is idiomatic for Gradio Tab+Column layout
+]
 
 [tool.mypy]
 python_version = "3.11"
