@@ -9,6 +9,8 @@ import json
 import time
 import urllib.error
 import urllib.request
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -131,7 +133,22 @@ class OptimizedImageProcessor:
 
             except urllib.error.HTTPError as e:
                 if e.code == 503 and attempt < max_retries - 1:
-                    retry_after = int(e.headers.get("Retry-After", 5))
+                    header = e.headers.get("Retry-After", None)
+                    retry_after = 5  # default fallback
+                    if header:
+                        try:
+                            # Try parsing as integer (delay-seconds)
+                            retry_after = int(header)
+                        except ValueError:
+                            # Try parsing as HTTP-date
+                            try:
+                                parsed_datetime = parsedate_to_datetime(header)
+                                now = datetime.now(UTC)
+                                seconds = max(0, int((parsed_datetime - now).total_seconds()))
+                                retry_after = seconds
+                            except (TypeError, ValueError):
+                                # Fall back to default if parsing fails
+                                retry_after = 5
                     app_logger.warning(f"NSFW API unavailable, retry in {retry_after}s")
                     time.sleep(retry_after)
                     continue

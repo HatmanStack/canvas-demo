@@ -139,36 +139,43 @@ All remediation targets from the consolidated plan are verified. Tests pass with
 ## Resolved Feedback
 
 ### FB-6: Phase 4 Task 3 verification checklist contradicts implementation (leftover from FB-2 fix)
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 4
 - **Resolution:** Updated the Phase 4 Task 3 verification checklist to say "Dockerfile uses `uv sync --frozen --no-dev --no-editable` instead of `pip install`", matching the actual implementation in the Dockerfile template.
 
 ### FB-7: Phase 2 Task 2 verification checklist overclaims scope
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 2
 - **Resolution:** Chose option (a): scoped the checklist to match the actual task. The verification checklist now explicitly names the four singletons being converted (`bedrock_service`, `rate_limiter`, `health_checker`, `canvas_handlers`) and notes that `app_logger`, `_nsfw_cache`, and `lambda_image_handler` remain as module-level instances. Also updated the Phase Verification section and the commit message template to avoid overclaiming scope.
 
 ### FB-1: Phase-0 ADR-4 contradicts Phase-2 Task 5 implementation
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 0, 2
 - **Resolution:** Updated ADR-4 title and body to say "urllib.request" instead of "requests". Updated ADR-5 to remove the incorrect claim about requests being a transitive dependency. Rewrote Phase-2 Task 5 title and opening steps to remove the deliberation (requests vs urllib) and present only the final approach (urllib.request from stdlib).
 
 ### FB-2: Dockerfile uv.lock claim is incorrect (Phase 4 Task 3)
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 4
 - **Resolution:** Replaced `uv pip install --system -r requirements.txt` with `uv sync --frozen --no-dev --no-editable` in the Dockerfile template. Removed the incorrect claim about uv.lock being consulted by `uv pip install`. Added an explanatory note that `uv sync --frozen` is what actually reads the lock file. Removed `requirements.txt` from the COPY line since `uv sync` reads `pyproject.toml` + `uv.lock`.
 
 ### FB-3: Adding commit-lint to all-checks needs will break push CI (Phase 4 Task 4)
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 4
 - **Resolution:** Replaced the instruction to add `commit-lint` to `all-checks` needs with an explicit instruction NOT to add it. Added explanation that `commit-lint` runs independently as an advisory check because its `skipped` status on push events would fail the `!= "success"` check in `all-checks`. Updated the verification checklist accordingly.
 
 ### FB-4: Phase 2 Task 5 should remove pytest-asyncio from CI install
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 4
 - **Resolution:** Added step 7 to Phase 4 Task 1 (which already modifies ci.yml) instructing the implementer to remove `pytest-asyncio` from both CI install lines (lines 76 and 114) and from pyproject.toml dev dependencies. Added a verification checklist item for this.
 
 ### FB-5: Phase 5 Task 4 lists .markdownlint.yaml under "Files to Modify" but it is a new file
+
 - **Source:** PLAN_REVIEW
 - **Phase:** 5
 - **Resolution:** Split Phase 5 Task 4 into separate "Files to Modify" (`.pre-commit-config.yaml`) and "Files to Create" (`.markdownlint.yaml`) sections. Added a "Files to Create" section to Phase 5 Task 5 for `.lychee.toml`.
