@@ -111,7 +111,10 @@ class OptimizedRateLimiter:
 
             except ClientError as e:
                 if e.response.get("Error", {}).get("Code") == "NoSuchKey":
-                    return self._initialize_rate_data(quality)
+                    if self._try_initialize(quality):
+                        return True
+                    # Init raced, loop will retry with a normal read
+                    continue
                 app_logger.warning(
                     f"Rate limit S3 error (fail-open): "
                     f"{e.response.get('Error', {}).get('Code', 'unknown')}. "
@@ -160,19 +163,20 @@ class OptimizedRateLimiter:
             kwargs["IfMatch"] = etag
         self.client_manager.s3_client.put_object(**kwargs)
 
-    def _initialize_rate_data(self, quality: str) -> bool:
+    def _try_initialize(self, quality: str) -> bool:
         """
-        Initialize rate data file for first request using conditional write.
+        Try to create the rate data file for the first request.
 
         Uses If-None-Match to prevent concurrent creators from overwriting
-        each other. If the conditional write fails (object already exists),
-        retries through the normal optimistic-locking read-modify-write flow.
+        each other. Returns True if this invocation won the race and created
+        the file, False if another invocation beat us (caller should retry
+        through the normal read-modify-write loop).
 
         Args:
             quality: Quality level of the first request
 
         Returns:
-            True if request is allowed, False if rate limited
+            True if initialized successfully, False if another writer won the race
         """
         rate_data: RateLimitData = {
             "premium": [],
@@ -196,9 +200,8 @@ class OptimizedRateLimiter:
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")
             if error_code in ("PreconditionFailed", "ConditionalCheckFailedException"):
-                # Another invocation created it first; retry through normal flow
-                app_logger.debug("Race on rate data init, retrying via optimistic lock")
-                return self._check_and_increment(quality)
+                app_logger.debug("Race on rate data init, will retry via optimistic lock")
+                return False
             app_logger.warning(f"Failed to initialize rate data: {e!s}")
             return True  # Fail open
 

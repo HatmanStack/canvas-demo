@@ -20,6 +20,8 @@ dev = [
     "mypy>=1.10",
     "boto3-stubs[s3,bedrock-runtime,logs]",
     "types-Pillow",
+    "types-psutil",
+    "types-Pillow",
 ]
 
 [tool.ruff]

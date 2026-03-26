@@ -28,9 +28,8 @@ class _NSFWCache:
     """Content-addressable cache for NSFW check results.
 
     Avoids redundant HuggingFace API calls for previously-checked images.
-    Uses SHA-256 of a 32x32 thumbnail (not full pixel data) as cache key
-    with FIFO eviction. This reduces per-lookup memory from ~16MB to ~3KB
-    for a 2048x2048 image.
+    Uses SHA-256 of the PNG-encoded image bytes (the same bytes sent to the
+    moderation API) as cache key with FIFO eviction.
     """
 
     def __init__(self, max_size: int = 128) -> None:
@@ -38,12 +37,10 @@ class _NSFWCache:
         self._max_size = max_size
 
     def _compute_key(self, image: Image.Image) -> str:
-        """Compute a lightweight cache key from image metadata and pixel sample."""
-        header = f"{image.size[0]}x{image.size[1]}:{image.mode}"
-        thumb = image.copy()
-        thumb.thumbnail((32, 32))
-        pixel_data = thumb.tobytes()
-        return hashlib.sha256(f"{header}:{pixel_data.hex()}".encode()).hexdigest()
+        """Compute cache key from the exact PNG bytes sent to the moderation API."""
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        return hashlib.sha256(buf.getvalue()).hexdigest()
 
     def get(self, image: Image.Image) -> bool | None:
         return self._cache.get(self._compute_key(image))
@@ -156,6 +153,9 @@ class OptimizedImageProcessor:
                     app_logger.warning(f"NSFW API unavailable, retry in {retry_after}s")
                     time.sleep(retry_after)
                     continue
+                if 400 <= e.code < 500:
+                    app_logger.warning(f"NSFW API client error ({e.code}), not retrying: {e}")
+                    break
                 app_logger.warning(f"NSFW API error: {e}")
             except Exception as e:
                 app_logger.warning(f"NSFW check error (attempt {attempt + 1}/{max_retries}): {e!s}")

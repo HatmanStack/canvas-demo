@@ -1,7 +1,10 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 from dotenv import load_dotenv
+
+# Fields where None means "caller did not pass a value, read from env"
+_ENV_OVERRIDE_FIELDS = frozenset({"enable_nsfw_check", "rate_limit", "is_lambda", "lambda_port"})
 
 
 @dataclass
@@ -42,11 +45,32 @@ class AppConfig:
     is_lambda: bool = False
     lambda_port: int = 8080
 
+    # Track which fields were explicitly set by the caller
+    _explicit_fields: frozenset[str] | None = None
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+
+    def __init__(self, **kwargs: object) -> None:
+        # Record which _ENV_OVERRIDE_FIELDS the caller actually passed
+        object.__setattr__(self, "_explicit_fields", frozenset(kwargs.keys()) & _ENV_OVERRIDE_FIELDS)
+        # Apply dataclass defaults then overrides
+        for f in fields(self):
+            if f.name == "_explicit_fields":
+                continue
+            if f.name in kwargs:
+                object.__setattr__(self, f.name, kwargs[f.name])
+            else:
+                object.__setattr__(self, f.name, f.default)
+        self.__post_init__()
+
     def __post_init__(self) -> None:
         """Read env vars at instantiation time and validate."""
         import logging
 
         from src.utils.exceptions import ConfigurationError
+
+        explicit = self._explicit_fields or frozenset()
 
         # Read env vars at instantiation, not class definition
         if not self.aws_access_key_id:
@@ -66,19 +90,18 @@ class AppConfig:
         if not self.log_level:
             self.log_level = os.getenv("LOG_LEVEL", "INFO")
 
-        # Only override from env if the caller didn't pass explicit values
-        # (i.e., value still matches the dataclass default)
-        if self.enable_nsfw_check is True:
+        # Only override from env when caller did not pass an explicit value
+        if "enable_nsfw_check" not in explicit:
             self.enable_nsfw_check = os.getenv("ENABLE_NSFW_CHECK", "true").lower() == "true"
-        if self.rate_limit == 20:
+        if "rate_limit" not in explicit:
             self.rate_limit = int(os.getenv("RATE_LIMIT", "20"))
 
         if not self.hf_token:
             self.hf_token = os.getenv("HF_TOKEN", "")
 
-        if self.is_lambda is False:
+        if "is_lambda" not in explicit:
             self.is_lambda = "AWS_LAMBDA_FUNCTION_NAME" in os.environ
-        if self.lambda_port == 8080:
+        if "lambda_port" not in explicit:
             self.lambda_port = int(os.getenv("AWS_LAMBDA_HTTP_PORT", "8080"))
 
         # Validation
