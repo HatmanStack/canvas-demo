@@ -234,7 +234,7 @@ class TestCheckNsfw:
     """Tests for synchronous NSFW check."""
 
     def test_nsfw_check_skips_when_disabled(self):
-        """NSFW check returns False when disabled."""
+        """NSFW check returns None when disabled."""
         img = Image.new("RGB", (256, 256), color="red")
         proc = OptimizedImageProcessor(img)
 
@@ -243,10 +243,10 @@ class TestCheckNsfw:
             mock_cfg.enable_nsfw_check = False
             result = proc.check_nsfw()
 
-        assert result is False
+        assert result is None
 
     def test_nsfw_check_skips_when_no_token(self):
-        """NSFW check returns False when no HF token."""
+        """NSFW check returns None when no HF token."""
         img = Image.new("RGB", (256, 256), color="red")
         proc = OptimizedImageProcessor(img)
 
@@ -256,7 +256,7 @@ class TestCheckNsfw:
             mock_cfg.hf_token = ""
             result = proc.check_nsfw()
 
-        assert result is False
+        assert result is None
 
     def test_nsfw_check_returns_true_on_nsfw_content(self):
         """NSFW check returns True when API reports nsfw score > 0.5."""

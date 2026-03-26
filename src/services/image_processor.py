@@ -100,11 +100,15 @@ class OptimizedImageProcessor:
             raise ImageError(f"Failed to open image: {e!s}") from e
 
     @log_performance
-    def check_nsfw(self) -> bool:
-        """Check image for NSFW content via HuggingFace API."""
+    def check_nsfw(self) -> bool | None:
+        """Check image for NSFW content via HuggingFace API.
+
+        Returns:
+            True if NSFW detected, False if safe, None if check was skipped or failed.
+        """
         if not get_config().enable_nsfw_check or not get_config().hf_token:
             app_logger.debug("NSFW check skipped (disabled or no token)")
-            return False
+            return None
 
         timeout = get_config().nsfw_timeout
         max_retries = get_config().nsfw_max_retries
@@ -160,7 +164,7 @@ class OptimizedImageProcessor:
                 time.sleep(2**attempt)
 
         app_logger.warning("NSFW check failed after all retries, continuing without check")
-        return False
+        return None
 
     @log_performance
     def _convert_color_mode(self) -> OptimizedImageProcessor:
@@ -298,8 +302,9 @@ class OptimizedImageProcessor:
                 raise NSFWError("Image flagged as inappropriate")
             if cached is None:
                 is_nsfw = self.check_nsfw()
-                _nsfw_cache.put(self.image, is_nsfw)
-                if is_nsfw:
+                if is_nsfw is not None:
+                    _nsfw_cache.put(self.image, is_nsfw)
+                if is_nsfw is True:
                     raise NSFWError("Image flagged as inappropriate")
 
         return self.encode()
