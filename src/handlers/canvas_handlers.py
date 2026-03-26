@@ -4,7 +4,6 @@ import io
 import json
 import random
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -325,8 +324,7 @@ class CanvasHandlers:
         if not images:
             return None, gr.update(visible=True, value="Please provide at least one input image")
 
-        with ThreadPoolExecutor(max_workers=min(len(images), 5)) as pool:
-            encoded_images = list(pool.map(process_and_encode_image, images))
+        encoded_images = [process_and_encode_image(img) for img in images]
 
         image_variation_params: dict[str, Any] = {"images": encoded_images}
         if similarity_strength is not None:
