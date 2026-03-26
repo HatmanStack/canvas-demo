@@ -73,15 +73,13 @@ class TestHealthCheck:
         assert status["services"]["bedrock"]["status"] == "unhealthy"
 
     def test_increment_counters(self):
-        """Test request and error counters."""
+        """Test request counter."""
         with patch("src.handlers.health.AWSClientManager"):
             health = HealthCheck()
             health.increment_request()
             health.increment_request()
-            health.increment_error()
 
             assert health.request_count == 2
-            assert health.error_count == 1
 
     def test_simple_status(self, mock_deps):
         """Test simple status method."""

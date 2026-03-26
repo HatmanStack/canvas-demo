@@ -17,17 +17,11 @@ class HealthCheck:
         self.start_time = time.time()
         self._counter_lock = threading.Lock()
         self.request_count = 0
-        self.error_count = 0
 
     def increment_request(self) -> None:
         """Increment request counter (thread-safe)."""
         with self._counter_lock:
             self.request_count += 1
-
-    def increment_error(self) -> None:
-        """Increment error counter (thread-safe)."""
-        with self._counter_lock:
-            self.error_count += 1
 
     def get_health_status(self) -> dict[str, Any]:
         """Get comprehensive health status"""
@@ -60,9 +54,6 @@ class HealthCheck:
             # Overall health determination
             if any(service["status"] != "healthy" for service in services.values()):
                 health_info["status"] = "degraded"
-
-            if self.error_count / max(self.request_count, 1) > 0.1:  # 10% error rate
-                health_info["status"] = "unhealthy"
 
             return health_info
         except Exception:
@@ -149,8 +140,6 @@ class HealthCheck:
 
         return {
             "total_requests": self.request_count,
-            "total_errors": self.error_count,
-            "error_rate": round(self.error_count / max(self.request_count, 1), 4),
             "requests_per_second": round(self.request_count / max(uptime_seconds, 1), 4),
             "memory_info": self._get_memory_info(),
         }
