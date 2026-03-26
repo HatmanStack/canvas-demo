@@ -472,7 +472,8 @@ class CanvasHandlers:
         app_logger.info("Starting prompt generation")
 
         try:
-            with Path("seeds.json").open() as file:
+            seeds_path = Path(__file__).resolve().parent.parent.parent / "seeds.json"
+            with seeds_path.open() as file:
                 data = json.load(file)
 
             if "seeds" not in data or not isinstance(data["seeds"], list):
