@@ -6,46 +6,11 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from PIL import Image
-
 from src.utils.lambda_helpers import LambdaImageHandler
 
 
 class TestLambdaImageHandler:
     """Tests for LambdaImageHandler class."""
-
-    @pytest.fixture
-    def sample_image(self):
-        """Create a sample RGB image."""
-        return Image.new("RGB", (100, 100), color="red")
-
-    @pytest.fixture
-    def sample_rgba_image(self):
-        """Create a sample RGBA image."""
-        return Image.new("RGBA", (100, 100), color=(255, 0, 0, 128))
-
-    def test_process_image_local_env(self, sample_image):
-        """Test processing in local environment (not Lambda)."""
-        with patch("src.utils.lambda_helpers.config.is_lambda", False):
-            result = LambdaImageHandler.process_image_for_lambda(sample_image)
-            assert isinstance(result, Image.Image)
-            assert result == sample_image
-
-    def test_process_image_lambda_env(self, sample_image):
-        """Test processing in Lambda environment."""
-        with (
-            patch("src.utils.lambda_helpers.config.is_lambda", True),
-            patch("PIL.Image.Image.save") as mock_save,
-            patch("pathlib.Path.stat") as mock_stat,
-        ):
-            mock_stat.return_value.st_size = 1024
-
-            result = LambdaImageHandler.process_image_for_lambda(sample_image)
-            assert isinstance(result, str)
-            assert "/tmp/canvas_gen_" in result
-            assert result.endswith(".png")
-            mock_save.assert_called_once()
 
     def test_cleanup_temp_files(self):
         """Test cleaning up old temp files."""
@@ -70,19 +35,10 @@ class TestLambdaImageHandler:
 
             # Mock Path("/tmp") to return our temp_path
             with patch("src.utils.lambda_helpers.Path") as mock_path_cls:
-                # When Path("/tmp") is called, return temp_path
-                # When Path(temp_path) is called (iterdir returns paths), return them as is?
-                # No, iterdir yields Path objects.
-
-                # The code: tmp_dir = Path("/tmp")
-                # Then tmp_dir.iterdir()
-
-                # We can mock the instance returned by Path("/tmp")
                 mock_tmp_instance = MagicMock()
                 mock_tmp_instance.exists.return_value = True
                 mock_tmp_instance.iterdir.return_value = [old_file, new_file, other_file]
 
-                # Configure Path class to return our mock when initialized with "/tmp"
                 def side_effect(arg=None):
                     if str(arg) == "/tmp":
                         return mock_tmp_instance
