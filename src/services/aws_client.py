@@ -4,6 +4,7 @@ import atexit
 import base64
 import json
 import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Final, cast
@@ -324,9 +325,10 @@ class BedrockService:
         """
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            unique_id = uuid.uuid4().hex[:8]
 
             # Store response body
-            response_key = f"responses/{timestamp}_response.json"
+            response_key = f"responses/{timestamp}_{unique_id}_response.json"
             self.client_manager.s3_client.put_object(
                 Bucket=config.nova_image_bucket,
                 Key=response_key,
@@ -336,7 +338,7 @@ class BedrockService:
 
             # Store image if present
             if image_data:
-                image_key = f"images/{timestamp}_image.png"
+                image_key = f"images/{timestamp}_{unique_id}_image.png"
                 self.client_manager.s3_client.put_object(
                     Bucket=config.nova_image_bucket,
                     Key=image_key,
