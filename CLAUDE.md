@@ -73,7 +73,7 @@ python app.py
 
 ## CI
 
-GitHub Actions on push/PR to `github-branch`: lint (ruff), type check (mypy), test (pytest with `-m "not integration"`, 75% coverage minimum), and integration test (LocalStack) run as parallel jobs. Link checking (lychee) and commit message linting (conventional commits, PR-only) also run. The `all-checks` gate requires all jobs to pass.
+GitHub Actions on push/PR to `main`: lint (ruff), type check (mypy), test (pytest with `-m "not integration"`, 75% coverage minimum), and integration test (LocalStack) run as parallel jobs. Link checking (lychee) and commit message linting (conventional commits, PR-only) also run. The `all-checks` gate requires all jobs to pass.
 
 ## Key Constraints
 

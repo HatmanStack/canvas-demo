@@ -13,10 +13,10 @@ pre-commit install --hook-type commit-msg
 
 ## Development Workflow
 
-1. Create a feature branch from `github-branch`
+1. Create a feature branch from `main`
 2. Make changes, ensuring `make lint && make typecheck && make test-cov` all pass
 3. Commit using [conventional commits](#commit-conventions)
-4. Open a PR against `github-branch`
+4. Open a PR against `main`
 
 ## Commit Conventions
 
@@ -45,7 +45,7 @@ test: add rate limiter integration tests
 ## PR Process
 
 - All PRs require passing CI (lint, typecheck, test with 75% coverage minimum)
-- PRs should be **squash-merged** to keep `github-branch` history clean
+- PRs should be **squash-merged** to keep `main` history clean
 - Write a clear PR description summarizing changes
 
 ## Testing
@@ -58,7 +58,7 @@ make test-integration  # Run integration tests (requires LocalStack)
 
 ## Branch Protection (Recommended)
 
-Enable branch protection on `github-branch` in GitHub settings:
+Enable branch protection on `main` in GitHub settings:
 
 - Require PR reviews before merging
 - Require all CI status checks to pass

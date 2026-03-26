@@ -248,7 +248,7 @@ commit-lint:
 
 2. Do NOT add `commit-lint` to the `all-checks` needs list. The `commit-lint` job has `if: github.event_name == 'pull_request'`, so it will be `skipped` on push events. The `all-checks` job checks each dependency result with `!= "success"`, so a `skipped` result would fail the check and break push CI. Let `commit-lint` run independently as an advisory check for PRs.
 
-3. Make the `commit-lint` job conditional on `pull_request` events only (not `push`), since push events to `github-branch` may include squash merges.
+3. Make the `commit-lint` job conditional on `pull_request` events only (not `push`), since push events to `main` may include squash merges.
 
 **Verification Checklist:**
 - [x] `commit-lint` job appears in CI workflow

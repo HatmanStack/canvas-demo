@@ -13,7 +13,7 @@ Work is sequenced as: cleanup first (remove dead code, unused deps), then struct
 - Python >= 3.11 with `uv` package manager
 - Project dependencies: `uv pip install --system -r requirements.txt && uv pip install --system -e ".[dev]"`
 - Familiarity with: Gradio, boto3, PIL/Pillow, pytest
-- Access to the repository on `github-branch`
+- Access to the repository on `main`
 
 ## Phase Summary
 

@@ -65,5 +65,5 @@ Scopes: `config`, `aws-client`, `rate-limiter`, `image-processor`, `handlers`, `
 
 ### Branch Strategy
 
-- All work on the current feature branch (not `main` or `github-branch` directly)
+- All work on the current feature branch (not `main` directly)
 - One commit per task (squash at PR time)

@@ -2,7 +2,7 @@ name: Create Release
 
 on:
   push:
-    branches: [github-branch]
+    branches: [main]
     paths: [CHANGELOG.md]
   workflow_dispatch:
 
