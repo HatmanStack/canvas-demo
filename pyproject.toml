@@ -16,7 +16,6 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
-    "pytest-asyncio>=0.23",
     "ruff>=0.4",
     "mypy>=1.10",
     "boto3-stubs[s3,bedrock-runtime,logs]",
@@ -80,8 +79,15 @@ module = [
     "gradio.*",
     "PIL.*",
     "numpy.*",
+    "psutil.*",
 ]
 ignore_missing_imports = true
+
+# boto3 client properties use double-checked locking with class-level Optional fields;
+# mypy cannot prove the field is non-None after initialization + raise
+[[tool.mypy.overrides]]
+module = ["src.services.aws_client"]
+disable_error_code = ["return-value"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -42,7 +42,7 @@ class AppConfig:
     is_lambda: bool = False
     lambda_port: int = 8080
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Read env vars at instantiation time and validate."""
         import logging
 

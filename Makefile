@@ -15,7 +15,7 @@ format:
 	ruff check --fix src/ tests/
 
 typecheck:
-	mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
+	mypy src/
 
 test:
 	pytest tests/ -v --tb=short

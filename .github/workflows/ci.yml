@@ -51,10 +51,10 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r requirements.txt
-          uv pip install --system mypy boto3-stubs[s3,bedrock-runtime,logs] types-Pillow
+          uv pip install --system mypy boto3-stubs[s3,bedrock-runtime,logs] types-Pillow types-psutil
 
       - name: Run mypy
-        run: mypy src/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
+        run: mypy src/
 
   test:
     name: Test
@@ -73,7 +73,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r requirements.txt
-          uv pip install --system pytest pytest-cov pytest-asyncio
+          uv pip install --system pytest pytest-cov
 
       - name: Run tests
         run: pytest tests/ -v --tb=short -m "not integration"
@@ -111,7 +111,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r requirements.txt
-          uv pip install --system pytest pytest-cov pytest-asyncio
+          uv pip install --system pytest pytest-cov
 
       - name: Wait for LocalStack
         run: |
