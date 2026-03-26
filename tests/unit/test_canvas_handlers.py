@@ -374,6 +374,11 @@ class TestCanvasHandlers:
         result = handlers.update_mask_editor({})
         assert result is None
 
+    def test_build_request_invalid_task_type_raises_value_error(self, handlers):
+        """Test _build_request with invalid task type raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown task type"):
+            handlers._build_request("INVALID_TASK", {})
+
     def test_process_response_invalid_bytes_returns_generic_error(self, handlers):
         """Test _process_response with invalid bytes returns generic error, not exception details."""
         image, update = handlers._process_response(b"not a valid image")

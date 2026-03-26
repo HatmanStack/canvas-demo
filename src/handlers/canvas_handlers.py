@@ -107,6 +107,9 @@ class CanvasHandlers:
             "BACKGROUND_REMOVAL": "backgroundRemovalParams",
         }
 
+        if task_type not in param_dict:
+            raise ValueError(f"Unknown task type: {task_type}")
+
         request_body = {
             "taskType": task_type,
             param_dict[task_type]: params,
