@@ -1,13 +1,14 @@
 services:
-  localstack:
-    image: localstack/localstack:3
+  ministack:
+    # High-performance drop-in replacement for LocalStack
+    image: ministack/ministack
     ports:
       - "4566:4566"
     environment:
       - SERVICES=s3
       - PERSISTENCE=0
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_ministack/health"]
       interval: 5s
       timeout: 5s
       retries: 10

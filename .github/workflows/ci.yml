@@ -85,15 +85,15 @@ jobs:
     name: Integration Test
     runs-on: ubuntu-latest
     services:
-      localstack:
-        image: localstack/localstack:3
+      ministack:
+        image: ministack/ministack
         ports:
           - 4566:4566
         env:
           SERVICES: s3
           PERSISTENCE: "0"
         options: >-
-          --health-cmd="curl -f http://localhost:4566/_localstack/health"
+          --health-cmd="curl -f http://localhost:4566/_ministack/health"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
@@ -113,17 +113,17 @@ jobs:
           uv pip install --system -e .
           uv pip install --system pytest pytest-cov
 
-      - name: Wait for LocalStack
+      - name: Wait for MiniStack
         run: |
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:4566/_localstack/health; then
-              echo "LocalStack is ready"
+            if curl -sf http://localhost:4566/_ministack/health; then
+              echo "MiniStack is ready"
               exit 0
             fi
-            echo "Waiting for LocalStack... ($i/30)"
+            echo "Waiting for MiniStack... ($i/30)"
             sleep 2
           done
-          echo "ERROR: LocalStack failed to become ready after 60s"
+          echo "ERROR: MiniStack failed to become ready after 60s"
           exit 1
 
       - name: Run integration tests
