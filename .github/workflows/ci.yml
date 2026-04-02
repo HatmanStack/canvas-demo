@@ -102,7 +102,7 @@ jobs:
         ports:
           - 4566:4566
         options: >-
-          --health-cmd "curl -f http://localhost:4566/_ministack/health"
+          --health-cmd "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:4566/_ministack/health')\""
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
