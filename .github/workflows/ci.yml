@@ -101,9 +101,6 @@ jobs:
         image: nahuelnucera/ministack
         ports:
           - 4566:4566
-        env:
-          SERVICES: s3
-          PERSISTENCE: "0"
         options: >-
           --health-cmd "curl -f http://localhost:4566/_ministack/health"
           --health-interval 5s
