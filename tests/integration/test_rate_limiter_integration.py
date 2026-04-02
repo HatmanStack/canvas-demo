@@ -1,4 +1,4 @@
-"""Integration tests for rate limiter against real S3 (LocalStack)."""
+"""Integration tests for rate limiter against real S3 (MiniStack)."""
 
 import json
 import time
@@ -15,7 +15,7 @@ class TestRateLimiterIntegration:
     RATE_LIMIT_KEY = "rate-limit/jsonData.json"
 
     def _make_limiter(self, s3_client):
-        """Create an OptimizedRateLimiter wired to the LocalStack S3 client."""
+        """Create an OptimizedRateLimiter wired to the MiniStack S3 client."""
         with patch("src.services.rate_limiter.AWSClientManager") as mock_manager:
             mock_instance = MagicMock()
             mock_instance.s3_client = s3_client
@@ -64,7 +64,7 @@ class TestRateLimiterIntegration:
         assert total >= 20
 
     def test_old_entries_cleaned_via_limiter(self, s3_client, s3_bucket, clean_rate_limit_data):
-        """Exercise the real rate limiter cleaning path against LocalStack S3."""
+        """Exercise the real rate limiter cleaning path against MiniStack S3."""
         now = time.time()
         window = 1200  # 20 minutes
         rate_data = {

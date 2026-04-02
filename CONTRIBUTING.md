@@ -53,7 +53,7 @@ test: add rate limiter integration tests
 ```bash
 make test          # Run all unit tests
 make test-cov      # Run with coverage (75% minimum)
-make test-integration  # Run integration tests (requires LocalStack)
+make test-integration  # Run integration tests (requires MiniStack)
 ```
 
 ## Branch Protection (Recommended)

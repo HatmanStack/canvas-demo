@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Link checking (lychee) in CI for markdown documentation
 - Markdownlint in pre-commit hooks
 - Dependency version pins (`>=`) for all runtime packages
-- `.env.example` documentation for fallback env vars, Lambda detection vars, and `LOCALSTACK_URL`
+- `.env.example` documentation for fallback env vars, Lambda detection vars, and `MINISTACK_URL`
 
 ### Changed
 
@@ -73,4 +73,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Containerized Lambda deployment via Docker
 - NSFW content detection via HuggingFace API
 - Health monitoring dashboard
-- CI pipeline with ruff, mypy, pytest, and LocalStack integration tests
+- CI pipeline with ruff, mypy, pytest, and MiniStack integration tests

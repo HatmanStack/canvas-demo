@@ -171,7 +171,7 @@ pillar_overrides:
 | Pillar | Score | Evidence |
 |--------|-------|----------|
 | Test Value | 8/10 | `tests/unit/test_canvas_handlers.py` -- 30+ behavior-oriented tests covering success paths, error paths, edge cases. `tests/unit/test_rate_limiter.py` -- tests rate limit math, fail-open behavior, S3 initialization. Tests verify *behavior* not implementation. |
-| Reproducibility | 8/10 | `.github/workflows/ci.yml` -- lint, typecheck, unit test, integration test (with LocalStack). `Dockerfile`, `.dockerignore`, `.pre-commit-config.yaml`, `Makefile` all present. `uv.lock` exists but is untracked. |
+| Reproducibility | 8/10 | `.github/workflows/ci.yml` -- lint, typecheck, unit test, integration test (with MiniStack). `Dockerfile`, `.dockerignore`, `.pre-commit-config.yaml`, `Makefile` all present. `uv.lock` exists but is untracked. |
 | Git Hygiene | 7/10 | Recent commits use conventional prefixes (`fix:`, `refactor:`, `test:`, `ci:`, `docs:`). Pre-commit hook enforces this. Older history has bare messages ("README", "Race Condition", "ruff formating"). |
 | Onboarding | 9/10 | `README.md` -- Quick Start in 4 lines, Makefile targets documented, architecture tree. `CONTRIBUTING.md` -- PR process, commit conventions, branch strategy. `.env.example` -- all vars documented. `CLAUDE.md` -- deep architectural reference. |
 
@@ -182,7 +182,7 @@ pillar_overrides:
 - **Some older commits lack conventional prefixes.** Commits like "README", "Race Condition", "ruff formating" (misspelled) predate the pre-commit hook.
 
 ### HIGHLIGHTS
-- **Process Win: Test architecture.** Clear separation between unit (`tests/unit/`) and integration (`tests/integration/`) directories. Integration tests use LocalStack with session-scoped fixtures. `pytestmark = pytest.mark.integration` marker keeps unit tests fast.
+- **Process Win: Test architecture.** Clear separation between unit (`tests/unit/`) and integration (`tests/integration/`) directories. Integration tests use MiniStack with session-scoped fixtures. `pytestmark = pytest.mark.integration` marker keeps unit tests fast.
 - **Process Win: Pre-commit pipeline.** `.pre-commit-config.yaml` enforces trailing whitespace, YAML validity, large file checks, branch protection, ruff linting, ruff formatting, and conventional commit messages.
 - **Process Win: Makefile as task runner.** Single-command targets for every common task. A junior can be productive immediately.
 - **Process Win: Error handling hierarchy.** `tests/unit/test_exceptions.py` documents a clean custom exception hierarchy. Tests verify error codes and default messages, serving as living documentation.

@@ -1,4 +1,4 @@
-"""Integration tests for S3 storage operations against LocalStack."""
+"""Integration tests for S3 storage operations against MiniStack."""
 
 import json
 

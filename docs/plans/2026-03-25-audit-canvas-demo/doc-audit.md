@@ -84,8 +84,8 @@ None. Shell command examples in README and CLAUDE.md match Makefile targets and 
    **Code reads `AWS_LAMBDA_HTTP_PORT`** (`src/models/config.py:50`) for Lambda port configuration.
    - Neither appears in `.env.example` or docs. The port default (8080) should be documented for Docker deployments.
 
-3. **Code reads `LOCALSTACK_URL`** (`tests/integration/conftest.py:11`) for integration testing.
-   - `.env.example` does not include this. CONTRIBUTING.md mentions integration tests but does not document the `LOCALSTACK_URL` env var needed to run them.
+3. **Code reads `MINISTACK_URL`** (`tests/integration/conftest.py:11`) for integration testing.
+   - `.env.example` does not include this. CONTRIBUTING.md mentions integration tests but does not document the `MINISTACK_URL` env var needed to run them.
 
 ### STRUCTURE ISSUES
 

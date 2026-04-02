@@ -104,7 +104,7 @@
 |---|---------|--------|----------|
 | 1 | Undocumented fallback env vars (AWS_ID, AWS_SECRET) | VERIFIED | `.env.example:1` documents the fallback chain: "checked in this order: AMP_AWS_ID > AWS_ID > AWS_ACCESS_KEY_ID". |
 | 2 | Undocumented Lambda env vars | VERIFIED | `.env.example:22-24` documents `AWS_LAMBDA_FUNCTION_NAME` and `AWS_LAMBDA_HTTP_PORT`. |
-| 3 | Undocumented LOCALSTACK_URL | VERIFIED | `.env.example:27` documents `LOCALSTACK_URL`. |
+| 3 | Undocumented MINISTACK_URL | VERIFIED | `.env.example:27` documents `MINISTACK_URL`. |
 
 ### Remaining Items (Not Targeted for Remediation)
 

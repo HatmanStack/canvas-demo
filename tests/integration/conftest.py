@@ -1,4 +1,4 @@
-"""Integration test fixtures using LocalStack."""
+"""Integration test fixtures using MiniStack."""
 
 import contextlib
 import os
@@ -8,25 +8,25 @@ import boto3
 import pytest
 from botocore.config import Config
 
-LOCALSTACK_URL = os.getenv("LOCALSTACK_URL", "http://localhost:4566")
+MINISTACK_URL = os.getenv("MINISTACK_URL", "http://localhost:4566")
 TEST_BUCKET = "test-canvas-bucket"
 
 
 @pytest.fixture(scope="session")
-def localstack_available():
-    """Skip all integration tests if LocalStack is not running."""
+def ministack_available():
+    """Skip all integration tests if MiniStack is not running."""
     try:
-        urllib.request.urlopen(f"{LOCALSTACK_URL}/_localstack/health", timeout=3)
+        urllib.request.urlopen(f"{MINISTACK_URL}/_ministack/health", timeout=3)
     except Exception:
-        pytest.skip("LocalStack not running")
+        pytest.skip("MiniStack not running")
 
 
 @pytest.fixture(scope="session")
-def s3_client(localstack_available):
-    """Real boto3 S3 client pointed at LocalStack."""
+def s3_client(ministack_available):
+    """Real boto3 S3 client pointed at MiniStack."""
     return boto3.client(
         "s3",
-        endpoint_url=LOCALSTACK_URL,
+        endpoint_url=MINISTACK_URL,
         aws_access_key_id="test",
         aws_secret_access_key="test",
         region_name="us-east-1",

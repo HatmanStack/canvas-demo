@@ -1,4 +1,4 @@
-"""Integration tests for health checks against LocalStack."""
+"""Integration tests for health checks against MiniStack."""
 
 import pytest
 from botocore.exceptions import ClientError
@@ -10,7 +10,7 @@ class TestHealthIntegration:
     """Health check integration tests using real S3."""
 
     def test_check_s3_healthy_bucket_exists(self, s3_client, s3_bucket):
-        """_check_s3 returns healthy when bucket exists in LocalStack."""
+        """_check_s3 returns healthy when bucket exists in MiniStack."""
         response = s3_client.head_bucket(Bucket=s3_bucket)
         assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
 

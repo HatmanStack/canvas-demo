@@ -147,13 +147,13 @@ AMP_AWS_SECRET=your-secret-access-key
 4. Add integration test variable:
 ```bash
 # Integration Testing
-# LOCALSTACK_URL=http://localhost:4566  # Required for integration tests
+# MINISTACK_URL=http://localhost:4566  # Required for integration tests
 ```
 
 **Verification Checklist:**
 - [x] `AWS_ID` / `AWS_SECRET` fallbacks documented
 - [x] `AWS_LAMBDA_FUNCTION_NAME` and `AWS_LAMBDA_HTTP_PORT` documented
-- [x] `LOCALSTACK_URL` documented
+- [x] `MINISTACK_URL` documented
 - [x] No real credentials in `.env.example`
 
 **Testing Instructions:**
@@ -166,7 +166,7 @@ docs(env): document fallback env vars and Lambda-specific configuration
 
 - AWS credential fallback chain documented
 - Lambda detection env vars documented
-- LOCALSTACK_URL for integration tests documented
+- MINISTACK_URL for integration tests documented
 ```
 
 ---
