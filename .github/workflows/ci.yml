@@ -105,10 +105,10 @@ jobs:
           SERVICES: s3
           PERSISTENCE: "0"
         options: >-
-          --health-cmd="curl -f http://localhost:4566/_ministack/health"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
+          --health-cmd "curl -f http://localhost:4566/_ministack/health"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v6
 
