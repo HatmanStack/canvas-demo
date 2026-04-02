@@ -1,7 +1,7 @@
 services:
   ministack:
-    # High-performance drop-in replacement for LocalStack
-    image: ministack/ministack
+    # High-performance drop-in replacement for MiniStack
+    image: nahuelnucera/ministack
     ports:
       - "4566:4566"
     environment:

@@ -98,7 +98,7 @@ jobs:
     timeout-minutes: 20
     services:
       ministack:
-        image: ministack/ministack
+        image: nahuelnucera/ministack
         ports:
           - 4566:4566
         env:
@@ -140,7 +140,7 @@ jobs:
 
       - name: Run integration tests
         env:
-          LOCALSTACK_URL: http://localhost:4566
+          MINISTACK_URL: http://localhost:4566
         run: pytest tests/integration/ -v -m integration
 
   link-check:
