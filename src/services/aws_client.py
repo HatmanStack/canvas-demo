@@ -90,17 +90,21 @@ class AWSClientManager:
                 # Double-check after acquiring lock
                 if self._bedrock_client is None:
                     try:
-                        AWSClientManager._bedrock_client = boto3.client(
-                            service_name="bedrock-runtime",
-                            aws_access_key_id=get_config().aws_access_key_id,
-                            aws_secret_access_key=get_config().aws_secret_access_key,
-                            region_name="us-east-1",  # Nova Canvas only available in us-east-1
-                            config=Config(
+                        client_kwargs: dict[str, Any] = {
+                            "service_name": "bedrock-runtime",
+                            "region_name": "us-east-1",  # Nova Canvas only in us-east-1
+                            "config": Config(
                                 read_timeout=get_config().bedrock_timeout,
                                 max_pool_connections=10,
                                 retries={"max_attempts": 3},
                             ),
-                        )
+                        }
+                        if get_config().aws_access_key_id:
+                            client_kwargs["aws_access_key_id"] = get_config().aws_access_key_id
+                            client_kwargs["aws_secret_access_key"] = (
+                                get_config().aws_secret_access_key
+                            )
+                        AWSClientManager._bedrock_client = boto3.client(**client_kwargs)
                         app_logger.info("Bedrock client initialized")
                     except Exception as e:
                         raise ConfigurationError(
@@ -117,13 +121,15 @@ class AWSClientManager:
                 # Double-check after acquiring lock
                 if self._s3_client is None:
                     try:
-                        AWSClientManager._s3_client = boto3.client(
-                            service_name="s3",
-                            aws_access_key_id=get_config().aws_access_key_id,
-                            aws_secret_access_key=get_config().aws_secret_access_key,
-                            region_name=get_config().bucket_region,
-                            config=Config(max_pool_connections=5),
-                        )
+                        s3_kwargs: dict[str, Any] = {
+                            "service_name": "s3",
+                            "region_name": get_config().bucket_region,
+                            "config": Config(max_pool_connections=5),
+                        }
+                        if get_config().aws_access_key_id:
+                            s3_kwargs["aws_access_key_id"] = get_config().aws_access_key_id
+                            s3_kwargs["aws_secret_access_key"] = get_config().aws_secret_access_key
+                        AWSClientManager._s3_client = boto3.client(**s3_kwargs)
                         app_logger.info("S3 client initialized")
                     except Exception as e:
                         raise ConfigurationError(f"Failed to initialize S3 client: {e!s}") from e
@@ -138,12 +144,16 @@ class AWSClientManager:
                 # Double-check after acquiring lock
                 if self._logs_client is None and get_config().is_lambda:
                     try:
-                        AWSClientManager._logs_client = boto3.client(
-                            service_name="logs",
-                            aws_access_key_id=get_config().aws_access_key_id,
-                            aws_secret_access_key=get_config().aws_secret_access_key,
-                            region_name=get_config().aws_region,
-                        )
+                        logs_kwargs: dict[str, Any] = {
+                            "service_name": "logs",
+                            "region_name": get_config().aws_region,
+                        }
+                        if get_config().aws_access_key_id:
+                            logs_kwargs["aws_access_key_id"] = get_config().aws_access_key_id
+                            logs_kwargs["aws_secret_access_key"] = (
+                                get_config().aws_secret_access_key
+                            )
+                        AWSClientManager._logs_client = boto3.client(**logs_kwargs)
                         app_logger.info("CloudWatch Logs client initialized")
                     except Exception as e:
                         app_logger.warning(f"Failed to initialize CloudWatch Logs client: {e!s}")

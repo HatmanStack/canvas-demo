@@ -3,8 +3,6 @@
 import os
 from unittest.mock import patch
 
-import pytest
-
 
 class TestConfigFactory:
     """Tests for get_config() lazy factory and reset_config()."""
@@ -56,8 +54,8 @@ class TestConfigFactory:
             config_b = get_config()
             assert config_b.nova_image_bucket == "bucket-b"
 
-    def test_get_config_without_credentials_raises(self):
-        """get_config() without required env vars raises ConfigurationError."""
+    def test_get_config_without_credentials_uses_default_chain(self):
+        """get_config() without explicit AWS creds succeeds (uses IAM role/default chain)."""
         from src.models.config import reset_config
 
         reset_config()
@@ -79,9 +77,8 @@ class TestConfigFactory:
                 from src.models.config import reset_config as rc2
 
                 rc2()
-                from src.utils.exceptions import ConfigurationError
-
-                with pytest.raises(ConfigurationError, match="AWS credentials"):
-                    get_config()
+                config = get_config()
+                assert config.aws_access_key_id == ""
+                assert config.aws_secret_access_key == ""
         finally:
             reset_config()

@@ -79,15 +79,16 @@ class AppConfig:
 
         explicit = self._explicit_fields or frozenset()
 
-        # Read env vars at instantiation, not class definition
+        # Read env vars at instantiation, not class definition.
+        # Only read AMP_AWS_* / AWS_ID / AWS_SECRET (explicit user-provided keys).
+        # Do NOT fall back to AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY — those are
+        # auto-set by Lambda from the execution role as STS temp credentials that
+        # also require AWS_SESSION_TOKEN. Let boto3 handle those via its default
+        # credential chain instead.
         if not self.aws_access_key_id:
-            self.aws_access_key_id = os.getenv(
-                "AMP_AWS_ID", os.getenv("AWS_ID", os.getenv("AWS_ACCESS_KEY_ID", ""))
-            )
+            self.aws_access_key_id = os.getenv("AMP_AWS_ID", os.getenv("AWS_ID", ""))
         if not self.aws_secret_access_key:
-            self.aws_secret_access_key = os.getenv(
-                "AMP_AWS_SECRET", os.getenv("AWS_SECRET", os.getenv("AWS_SECRET_ACCESS_KEY", ""))
-            )
+            self.aws_secret_access_key = os.getenv("AMP_AWS_SECRET", os.getenv("AWS_SECRET", ""))
         if not self.aws_region:
             self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         if not self.bucket_region:
@@ -112,9 +113,6 @@ class AppConfig:
             self.lambda_port = int(os.getenv("AWS_LAMBDA_HTTP_PORT", "8080"))
 
         # Validation
-        if not self.aws_access_key_id or not self.aws_secret_access_key:
-            raise ConfigurationError("AWS credentials are required")
-
         if not self.nova_image_bucket:
             raise ConfigurationError("NOVA_IMAGE_BUCKET is required")
 

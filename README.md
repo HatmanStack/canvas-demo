@@ -39,7 +39,7 @@ An optimized, high-performance Gradio application for advanced image generation 
 
 ## Prerequisites
 
-- AWS credentials configured (AmazonBedrockFullAccess)
+- AWS credentials configured (see [DEPLOY.md](DEPLOY.md) for IAM role setup, or use `AMP_AWS_ID`/`AMP_AWS_SECRET` env vars for local dev)
 - HF Token for NSFW content checking (optional)
 - Python >= 3.11
 - Docker (for containerized deployment)
@@ -84,7 +84,7 @@ docker run -p 8080:8080 --env-file .env canvas-demo
 
 ### AWS Lambda Deployment
 
-The application automatically detects Lambda environment and configures accordingly.
+See [DEPLOY.md](DEPLOY.md) for full Lambda deployment instructions including IAM role setup, CodeBuild configuration, and S3-based build pipeline.
 
 ## Development
 
